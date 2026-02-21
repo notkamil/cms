@@ -1,0 +1,46 @@
+# --- Gradle (backend) ---
+backend/build/
+backend/.gradle/
+!backend/gradle/wrapper/gradle-wrapper.jar
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Kotlin / JVM ---
+out/
+*.class
+*.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
+*.war
+*.log
+
+# --- Node / frontend ---
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+frontend/dist/
+
+# --- Переменные окружения и секреты ---
+.env
+.env.local
+.env.*.local
+*.pem
+
+# --- ОС ---
+.DS_Store
+Thumbs.db
+
+# --- Прочее ---
+*.bak
+*.tmp
+*.temp
+.cache/

@@ -89,6 +89,11 @@ export default function CabinetPage() {
     return () => { cancelled = true }
   }, [token, navigate])
 
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    if (link) link.href = theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'
+  }, [theme])
+
   const toggleTheme = () => {
     setTheme((t) => {
       const next = t === 'light' ? 'dark' : 'light'
@@ -190,7 +195,10 @@ export default function CabinetPage() {
       <header className="cabinet-header">
         <div className="cabinet-header-left">
           <div className="cabinet-header-brand">
-            <h1 className="cabinet-logo">CMS</h1>
+            <div className="cabinet-logo-row">
+              <img src={theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'} alt="" className="cabinet-logo-img" width={32} height={32} />
+              <h1 className="cabinet-logo">CMS</h1>
+            </div>
           </div>
           <nav className="cabinet-header-nav">
             <NavLink to="/" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Главная</NavLink>

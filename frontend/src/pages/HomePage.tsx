@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth, ApiError } from '../context/AuthContext'
 import './HomePage.css'
@@ -54,6 +54,11 @@ export default function HomePage() {
     })
   }
 
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    if (link) link.href = theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'
+  }, [theme])
+
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [registerName, setRegisterName] = useState('')
@@ -84,7 +89,10 @@ export default function HomePage() {
         <header className="home-header">
           <div className="home-header-left">
             <div className="home-header-brand">
-              <h1 className="home-logo">CMS</h1>
+              <div className="home-logo-row">
+                <img src={theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'} alt="" className="home-logo-img" width={32} height={32} />
+                <h1 className="home-logo">CMS</h1>
+              </div>
             </div>
             <nav className="home-header-nav">
               <NavLink to="/" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`} end>Главная</NavLink>
@@ -115,9 +123,14 @@ export default function HomePage() {
     <div className="home" data-theme={theme}>
       <header className="home-header">
         <div className="home-header-left">
-          <div className="home-header-brand">
-            <h1 className="home-logo">CMS</h1>
-            <p className="home-subtitle">Coworking Management System</p>
+          <div className="home-header-brand home-header-brand--with-subtitle">
+            <div className="home-logo-tall-wrap">
+              <img src={theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'} alt="" className="home-logo-img home-logo-img--tall" />
+            </div>
+            <div className="home-brand-text">
+              <h1 className="home-logo">CMS</h1>
+              <p className="home-subtitle">Coworking Management System</p>
+            </div>
           </div>
         </div>
         <div className="home-header-right">

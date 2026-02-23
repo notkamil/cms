@@ -1,13 +1,13 @@
 .cabinet {
   --cabinet-bg: #fafafa;
-  --cabinet-text: #333;
-  --cabinet-text-muted: #666;
+  --cabinet-text: #333333;
+  --cabinet-text-muted: #666666;
   --cabinet-header-bg: #e0e0e0;
-  --cabinet-border: #999;
-  --cabinet-card-bg: #fff;
-  --cabinet-input-bg: #fff;
-  --cabinet-error-bg: #fee;
-  --cabinet-error-text: #c00;
+  --cabinet-border: #999999;
+  --cabinet-card-bg: #ffffff;
+  --cabinet-input-bg: #ffffff;
+  --cabinet-error-bg: #ffeeee;
+  --cabinet-error-text: #cc0000;
   --cabinet-edit-bg: #dae8fc;
   --cabinet-edit-border: #6c8ebf;
   --cabinet-logout-bg: #f8cecc;
@@ -30,16 +30,16 @@
   --cabinet-text: #e0e0e0;
   --cabinet-text-muted: #b0b0b0;
   --cabinet-header-bg: #2d2d2d;
-  --cabinet-border: #555;
+  --cabinet-border: #555555;
   --cabinet-card-bg: #252525;
-  --cabinet-input-bg: #333;
+  --cabinet-input-bg: #333333;
   --cabinet-error-bg: #4a2020;
-  --cabinet-error-text: #f88;
+  --cabinet-error-text: #ff8888;
   --cabinet-edit-bg: #2d3d5a;
   --cabinet-edit-border: #6c8ebf;
   --cabinet-logout-bg: #4a2020;
   --cabinet-logout-border: #b85450;
-  --cabinet-logout-text: #f88;
+  --cabinet-logout-text: #ff8888;
   --cabinet-logout-hover: #5a2830;
   --cabinet-modal-overlay: rgba(0, 0, 0, 0.6);
 }
@@ -80,7 +80,19 @@
 .cabinet-header-brand {
   display: flex;
   flex-direction: column;
-  gap: 0;
+}
+
+.cabinet-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cabinet-logo-img {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  display: block;
 }
 
 .cabinet-header-nav {

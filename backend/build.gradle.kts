@@ -24,6 +24,8 @@ dependencies {
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-auth-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-auth-jwt-jvm:$ktorVersion")
     implementation("ch.qos.logback:logback-classic:1.4.14")
     // JDBC and connection pool
     implementation("org.postgresql:postgresql:42.7.2")
@@ -32,6 +34,11 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
+    // Password hashing
+    implementation("at.favre.lib:bcrypt:0.10.2")
+    // JWT creation (validation via Ktor Auth JWT)
+    implementation("com.auth0:java-jwt:4.4.0")
 }
 
 kotlin {

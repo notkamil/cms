@@ -10,9 +10,9 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import ru.itmo.cms.models.LoginRequest
-import ru.itmo.cms.models.StaffAuthResponse
-import ru.itmo.cms.models.StaffResponse
+import ru.itmo.cms.models.*
+import ru.itmo.cms.repository.SpaceTypeRepository
+import ru.itmo.cms.repository.SpaceTypeRow
 import ru.itmo.cms.repository.StaffRepository
 import ru.itmo.cms.repository.StaffRow
 import java.util.*
@@ -63,6 +63,110 @@ fun Application.configureStaffRoutes() {
                     }
                 call.respond(staff.toStaffResponse())
             }
+
+            // ----- Space Types -----
+            get("/api/staff/space-types") {
+                val list = SpaceTypeRepository.findAll().map { it.toSpaceTypeResponse() }
+                call.respond(list)
+            }
+            post("/api/staff/space-types") {
+                val body = call.receive<CreateSpaceTypeRequest>()
+                val name = body.name.trim()
+                if (name.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название обязательно"))
+                    return@post
+                }
+                if (SpaceTypeRepository.findByName(name) != null) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Тип с таким названием уже существует"))
+                    return@post
+                }
+                val description = body.description?.trim() ?: ""
+                val created = SpaceTypeRepository.create(name, description)
+                call.respond(HttpStatusCode.Created, created.toSpaceTypeResponse())
+            }
+            get("/api/staff/space-types/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                val row = SpaceTypeRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тип пространства не найден"))
+                        return@get
+                    }
+                call.respond(row.toSpaceTypeResponse())
+            }
+            patch("/api/staff/space-types/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@patch
+                }
+                val current = SpaceTypeRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тип пространства не найден"))
+                        return@patch
+                    }
+                val body = call.receive<UpdateSpaceTypeRequest>()
+                if (body.name == null && body.description == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите name и/или description"))
+                    return@patch
+                }
+                val newName = body.name?.trim()
+                if (newName != null && newName.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название не может быть пустым"))
+                    return@patch
+                }
+                if (newName != null) {
+                    val existing = SpaceTypeRepository.findByName(newName)
+                    if (existing != null && existing.spaceTypeId != id) {
+                        call.respond(HttpStatusCode.Conflict, mapOf("error" to "Тип с таким названием уже существует"))
+                        return@patch
+                    }
+                }
+                val updated = SpaceTypeRepository.update(
+                    spaceTypeId = id,
+                    name = body.name?.trim(),
+                    description = body.description?.trim()
+                )
+                call.respond(updated!!.toSpaceTypeResponse())
+            }
+            get("/api/staff/space-types/{id}/spaces") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                if (SpaceTypeRepository.findById(id) == null) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тип пространства не найден"))
+                    return@get
+                }
+                val spaces = SpaceTypeRepository.getSpacesUsingType(id)
+                    .map { SpaceSummaryResponse(spaceId = it.spaceId, name = it.name) }
+                call.respond(spaces)
+            }
+            delete("/api/staff/space-types/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@delete
+                }
+                val current = SpaceTypeRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тип пространства не найден"))
+                        return@delete
+                    }
+                val spaces = SpaceTypeRepository.getSpacesUsingType(id)
+                if (spaces.isNotEmpty()) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        DeleteSpaceTypeConflictResponse(
+                            error = "Невозможно удалить: существуют пространства с этим типом",
+                            spaces = spaces.map { SpaceSummaryResponse(spaceId = it.spaceId, name = it.name) }
+                        )
+                    )
+                    return@delete
+                }
+                SpaceTypeRepository.delete(id)
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }
@@ -91,4 +195,10 @@ private fun StaffRow.toStaffResponse() = StaffResponse(
     phone = phone,
     role = role.name,
     position = position
+)
+
+private fun SpaceTypeRow.toSpaceTypeResponse() = SpaceTypeResponse(
+    id = spaceTypeId,
+    name = name,
+    description = description
 )

@@ -8,6 +8,7 @@ import { StaffLayout } from './components/StaffLayout'
 import StaffLoginPage from './pages/StaffLoginPage'
 import StaffHomePage from './pages/StaffHomePage'
 import StaffCabinetPage from './pages/StaffCabinetPage'
+import StaffSpaceTypesPage from './pages/StaffSpaceTypesPage'
 import './App.css'
 
 function StaffGate() {
@@ -28,6 +29,7 @@ function App() {
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffGate />} />
               <Route path="cabinet" element={<StaffCabinetPage />} />
+              <Route path="space-types" element={<StaffSpaceTypesPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&display=swap');
 
+/*
+ * Staff layout: staff-* — staff-specific; cabinet-* from CabinetPage.css — shared shell (header, main, table, modal).
+ */
+
 /* До логина — полный бренд (лого крупнее + подпись); после — только CMS/Staff и лого 2rem */
 .staff-header-brand {
   display: flex;

@@ -410,6 +410,22 @@
   font-size: 0.875rem;
 }
 
+.cabinet-modal-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.cabinet-modal-field .cabinet-modal-label {
+  display: block;
+}
+
+.cabinet-modal-field .cabinet-modal-input {
+  width: 100%;
+  min-width: 0;
+}
+
 .cabinet-modal-label {
   font-size: 0.8125rem;
   font-weight: 600;
@@ -465,4 +481,20 @@
 .cabinet-deposit-submit {
   border-color: var(--cabinet-deposit-border);
   background: var(--cabinet-deposit-bg);
+}
+
+/* Кнопки в ячейке таблицы — в одну строку */
+.cabinet-table-actions-cell {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.cabinet-table-actions-cell .cabinet-edit-btn,
+.cabinet-table-actions-cell .cabinet-password-btn {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
 }

@@ -1,6 +1,14 @@
-/* Как в /cabinet: контент сразу в main с padding 2rem и max-width 720px — таблица от левого края на 2rem, ширина 720px − 4rem */
-.staff-cabinet-content {
+/*
+ * Staff content width (BEM):
+ * - staff-content — default narrow (720px − 4rem), same margins as cabinet
+ * - staff-content--wide — wider (960px − 4rem), e.g. for tables
+ */
+.staff-content {
   width: 100%;
   max-width: calc(720px - 4rem);
   margin-right: auto;
+}
+
+.staff-content--wide {
+  max-width: calc(960px - 4rem);
 }

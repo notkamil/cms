@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { StaffLayout } from '../components/StaffLayout'
 import { useStaffAuth } from '../context/StaffAuthContext'
 import './CabinetPage.css'
-import './StaffDashboardPage.css'
+import './StaffCabinetPage.css'
 
 export default function StaffDashboardPage() {
   const { staffUser } = useStaffAuth()
@@ -15,7 +15,7 @@ export default function StaffDashboardPage() {
 
   return (
     <StaffLayout>
-      <div className="staff-cabinet-content">
+      <div className="staff-content">
       <table className="cabinet-table">
         <caption className="cabinet-table-caption">Данные сотрудника</caption>
         <tbody>

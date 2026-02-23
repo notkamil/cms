@@ -85,6 +85,7 @@ fun Application.module() {
         allowMethod(HttpMethod.Post)
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
     }
     configureAuthRoutes()
     configureStaffRoutes()

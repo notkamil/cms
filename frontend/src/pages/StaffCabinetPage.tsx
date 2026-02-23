@@ -15,7 +15,7 @@ export default function StaffCabinetPage() {
 
   return (
     <>
-      <div className="staff-cabinet-content">
+      <div className="staff-content">
         <table className="cabinet-table">
           <caption className="cabinet-table-caption">Данные сотрудника</caption>
           <tbody>

@@ -93,11 +93,11 @@ export async function post<T = unknown>(path: string, body: object, useStaffToke
 /**
  * PATCH request with JSON body. Throws ApiError on non-2xx response.
  */
-export async function patch<T = unknown>(path: string, body: object): Promise<T> {
+export async function patch<T = unknown>(path: string, body: object, useStaffToken = false): Promise<T> {
   const url = buildUrl(path)
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: buildHeaders(true),
+    headers: buildHeaders(true, useStaffToken),
     body: JSON.stringify(body),
   })
   const data = await res.json().catch(() => ({}))
@@ -130,6 +130,31 @@ export async function put<T = unknown>(path: string, body: object): Promise<T> {
     )
   }
   return data as T
+}
+
+/**
+ * DELETE request. Throws ApiError on non-2xx response. Handles 204 No Content.
+ */
+export async function del<T = unknown>(path: string, useStaffToken = false): Promise<T | void> {
+  const url = buildUrl(path)
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: buildHeaders(false, useStaffToken),
+  })
+  const text = await res.text()
+  if (!res.ok) {
+    let data: object = {}
+    try {
+      if (text.trim()) data = JSON.parse(text) as object
+    } catch (_) { /* ignore */ }
+    throw new ApiError(
+      (data as { error?: string })?.error ?? res.statusText,
+      res.status,
+      data
+    )
+  }
+  if (res.status === 204 || !text.trim()) return
+  return JSON.parse(text) as T
 }
 
 export { getToken, getStaffToken }

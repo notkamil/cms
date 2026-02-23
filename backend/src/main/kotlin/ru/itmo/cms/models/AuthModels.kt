@@ -76,3 +76,36 @@ data class TransactionResponse(
     val amountChange: Double,
     val description: String
 )
+
+// ----- Staff: Space Types -----
+
+@Serializable
+data class SpaceTypeResponse(
+    val id: Int,
+    val name: String,
+    val description: String
+)
+
+@Serializable
+data class CreateSpaceTypeRequest(
+    val name: String,
+    val description: String? = null
+)
+
+@Serializable
+data class UpdateSpaceTypeRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+@Serializable
+data class SpaceSummaryResponse(
+    val spaceId: Int,
+    val name: String
+)
+
+@Serializable
+data class DeleteSpaceTypeConflictResponse(
+    val error: String,
+    val spaces: List<SpaceSummaryResponse>
+)

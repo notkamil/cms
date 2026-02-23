@@ -26,6 +26,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-auth-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-auth-jwt-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-cors-jvm:$ktorVersion")
     implementation("ch.qos.logback:logback-classic:1.4.14")
     // JDBC and connection pool
     implementation("org.postgresql:postgresql:42.7.2")

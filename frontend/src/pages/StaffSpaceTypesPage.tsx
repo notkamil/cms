@@ -166,12 +166,12 @@ export default function StaffSpaceTypesPage() {
 
   return (
     <>
-      <div className="staff-content staff-content--wide">
+      <div className="staff-content staff-content--wider">
         <h2 className="cabinet-history-title">Типы пространств</h2>
         {sortedList.length === 0 ? (
           <p className="cabinet-history-empty">Нет типов пространств</p>
         ) : (
-          <table className="cabinet-table cabinet-history-table">
+          <table className="cabinet-table cabinet-history-table staff-space-types-table">
             <thead>
               <tr>
                 <th scope="col">Название</th>
@@ -302,29 +302,46 @@ export default function StaffSpaceTypesPage() {
       {modal === 'delete' && (
         <div className="cabinet-modal-overlay" onClick={closeModal}>
           <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="cabinet-modal-title">Удалить тип пространства?</h3>
+            <h3 className="cabinet-modal-title">
+              {deleteSpaces.length > 0 ? 'Удаление невозможно' : 'Удалить тип пространства?'}
+            </h3>
             <div className="cabinet-modal-form">
               {deleteError && <p className="cabinet-modal-error">{deleteError}</p>}
               {deleteSpaces.length > 0 ? (
-                <p className="cabinet-modal-error">
-                  Следующие пространства имеют этот тип:{' '}
-                  {deleteSpaces.map((s) => s.name).join(', ')}. Удаление невозможно.
-                </p>
+                <div className="staff-conflict-block">
+                  <p>Следующие пространства имеют этот тип:</p>
+                  <table className="staff-conflict-table" aria-label="Пространства с этим типом">
+                    <thead>
+                      <tr>
+                        <th scope="col">Название</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deleteSpaces.map((s) => (
+                        <tr key={s.spaceId}>
+                          <td>{s.name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p>Вы уверены, что хотите удалить этот тип? Это действие нельзя отменить</p>
               )}
               <div className="cabinet-modal-actions">
                 <button type="button" className="cabinet-modal-cancel" onClick={closeModal}>
-                  Отмена
+                  {deleteSpaces.length > 0 ? 'Хорошо' : 'Отмена'}
                 </button>
-                <button
-                  type="button"
-                  className="cabinet-password-btn"
-                  disabled={!canDelete || deleteLoading}
-                  onClick={submitDelete}
-                >
-                  {deleteLoading ? 'Удаление…' : 'Удалить'}
-                </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    className="cabinet-password-btn"
+                    disabled={deleteLoading}
+                    onClick={submitDelete}
+                  >
+                    {deleteLoading ? 'Удаление…' : 'Удалить'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

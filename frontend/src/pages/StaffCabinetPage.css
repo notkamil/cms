@@ -2,6 +2,7 @@
  * Staff content width (BEM):
  * - staff-content — default narrow (720px − 4rem), same margins as cabinet
  * - staff-content--wide — wider (960px − 4rem), e.g. for tables
+ * - staff-content--wider — ещё шире (1200px − 4rem), для таблиц с названием и описанием
  */
 .staff-content {
   width: 100%;
@@ -11,4 +12,63 @@
 
 .staff-content--wide {
   max-width: calc(960px - 4rem);
+}
+
+/* Ещё шире для таблиц с названием и описанием (пространства, типы пространств) */
+.staff-content--wider {
+  max-width: calc(1200px - 4rem);
+}
+
+/* Минимальная ширина колонок «Название» и «Описание» */
+.staff-spaces-table th:nth-child(1),
+.staff-spaces-table td:nth-child(1) {
+  min-width: 12rem;
+}
+.staff-spaces-table th:nth-child(5),
+.staff-spaces-table td:nth-child(5) {
+  min-width: 18rem;
+}
+
+.staff-space-types-table th:nth-child(1),
+.staff-space-types-table td:nth-child(1) {
+  min-width: 12rem;
+}
+.staff-space-types-table th:nth-child(2),
+.staff-space-types-table td:nth-child(2) {
+  min-width: 18rem;
+}
+
+/* Табличка конфликтующих пространств в модалке удаления типа */
+.staff-conflict-block {
+  margin: 0.75rem 0;
+}
+.staff-conflict-block p {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--cabinet-text-muted);
+}
+.staff-conflict-table {
+  width: 100%;
+  max-width: 280px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  background: var(--cabinet-card-bg);
+  border: 1px solid var(--cabinet-border);
+}
+.staff-conflict-table th,
+.staff-conflict-table td {
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--cabinet-border);
+}
+.staff-conflict-table th {
+  font-weight: 600;
+  background: var(--cabinet-header-bg);
+  color: var(--cabinet-text);
+}
+.staff-conflict-table tr:last-child td {
+  border-bottom: none;
+}
+.staff-conflict-table td {
+  color: var(--cabinet-text);
 }

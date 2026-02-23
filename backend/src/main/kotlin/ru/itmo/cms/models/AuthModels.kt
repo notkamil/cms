@@ -109,3 +109,37 @@ data class DeleteSpaceTypeConflictResponse(
     val error: String,
     val spaces: List<SpaceSummaryResponse>
 )
+
+// ----- Staff: Spaces -----
+
+@Serializable
+data class SpaceResponse(
+    val id: Int,
+    val name: String,
+    val typeId: Int,
+    val typeName: String,
+    val floor: Int,
+    val capacity: Int,
+    val status: String,
+    val description: String
+)
+
+@Serializable
+data class CreateSpaceRequest(
+    val name: String,
+    val spaceTypeId: Int,
+    val floor: Int,
+    val capacity: Int,
+    val description: String? = null,
+    val status: String? = null
+)
+
+@Serializable
+data class UpdateSpaceRequest(
+    val name: String? = null,
+    val spaceTypeId: Int? = null,
+    val floor: Int? = null,
+    val capacity: Int? = null,
+    val description: String? = null,
+    val status: String? = null
+)

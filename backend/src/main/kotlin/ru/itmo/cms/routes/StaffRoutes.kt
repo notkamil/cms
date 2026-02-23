@@ -11,6 +11,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import ru.itmo.cms.models.*
+import ru.itmo.cms.repository.SpaceRepository
+import ru.itmo.cms.repository.SpaceRow
 import ru.itmo.cms.repository.SpaceTypeRepository
 import ru.itmo.cms.repository.SpaceTypeRow
 import ru.itmo.cms.repository.StaffRepository
@@ -167,6 +169,106 @@ fun Application.configureStaffRoutes() {
                 SpaceTypeRepository.delete(id)
                 call.respond(HttpStatusCode.NoContent)
             }
+
+            // ----- Spaces -----
+            get("/api/staff/spaces") {
+                val list = SpaceRepository.findAll().map { it.toSpaceResponse() }
+                call.respond(list)
+            }
+            post("/api/staff/spaces") {
+                val body = call.receive<CreateSpaceRequest>()
+                val name = body.name.trim()
+                if (name.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название обязательно"))
+                    return@post
+                }
+                if (SpaceRepository.findByName(name) != null) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Пространство с таким названием уже существует"))
+                    return@post
+                }
+                val type = SpaceTypeRepository.findById(body.spaceTypeId)
+                    ?: run {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Тип пространства не найден"))
+                        return@post
+                    }
+                val created = SpaceRepository.create(
+                    name = name,
+                    spaceTypeId = body.spaceTypeId,
+                    floor = body.floor,
+                    capacity = body.capacity,
+                    description = body.description?.trim() ?: "",
+                    status = body.status?.trim()?.lowercase()?.takeIf { it in listOf("available", "occupied", "maintenance") } ?: "available"
+                )
+                call.respond(HttpStatusCode.Created, created.toSpaceResponse())
+            }
+            get("/api/staff/spaces/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                val row = SpaceRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пространство не найдено"))
+                        return@get
+                    }
+                call.respond(row.toSpaceResponse())
+            }
+            patch("/api/staff/spaces/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@patch
+                }
+                val current = SpaceRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пространство не найдено"))
+                        return@patch
+                    }
+                val body = call.receive<UpdateSpaceRequest>()
+                if (body.name == null && body.spaceTypeId == null && body.floor == null && body.capacity == null && body.description == null && body.status == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите хотя бы одно поле для обновления"))
+                    return@patch
+                }
+                val newName = body.name?.trim()
+                if (newName != null && newName.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название не может быть пустым"))
+                    return@patch
+                }
+                if (newName != null) {
+                    val existing = SpaceRepository.findByName(newName)
+                    if (existing != null && existing.spaceId != id) {
+                        call.respond(HttpStatusCode.Conflict, mapOf("error" to "Пространство с таким названием уже существует"))
+                        return@patch
+                    }
+                }
+                body.spaceTypeId?.let { typeId ->
+                    if (SpaceTypeRepository.findById(typeId) == null) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Тип пространства не найден"))
+                        return@patch
+                    }
+                }
+                val updated = SpaceRepository.update(
+                    spaceId = id,
+                    name = body.name?.trim(),
+                    spaceTypeId = body.spaceTypeId,
+                    floor = body.floor,
+                    capacity = body.capacity,
+                    description = body.description?.trim(),
+                    status = body.status?.trim()?.lowercase()?.takeIf { it in listOf("available", "occupied", "maintenance") }
+                )
+                call.respond(updated!!.toSpaceResponse())
+            }
+            delete("/api/staff/spaces/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@delete
+                }
+                if (SpaceRepository.findById(id) == null) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пространство не найдено"))
+                    return@delete
+                }
+                SpaceRepository.delete(id)
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }
@@ -200,5 +302,16 @@ private fun StaffRow.toStaffResponse() = StaffResponse(
 private fun SpaceTypeRow.toSpaceTypeResponse() = SpaceTypeResponse(
     id = spaceTypeId,
     name = name,
+    description = description
+)
+
+private fun SpaceRow.toSpaceResponse() = SpaceResponse(
+    id = spaceId,
+    name = name,
+    typeId = spaceTypeId,
+    typeName = typeName,
+    floor = floor,
+    capacity = capacity,
+    status = status,
     description = description
 )

@@ -373,7 +373,7 @@ export default function CabinetPage() {
             </section>
           </>
         ) : (
-          <p className="cabinet-error">Не удалось загрузить данные. Проверьте авторизацию.</p>
+          <p className="cabinet-error">Не удалось загрузить данные. Проверьте авторизацию</p>
         )}
       </main>
 

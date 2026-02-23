@@ -9,6 +9,7 @@ import StaffLoginPage from './pages/StaffLoginPage'
 import StaffHomePage from './pages/StaffHomePage'
 import StaffCabinetPage from './pages/StaffCabinetPage'
 import StaffSpaceTypesPage from './pages/StaffSpaceTypesPage'
+import StaffSpacesPage from './pages/StaffSpacesPage'
 import './App.css'
 
 function StaffGate() {
@@ -30,6 +31,7 @@ function App() {
               <Route index element={<StaffGate />} />
               <Route path="cabinet" element={<StaffCabinetPage />} />
               <Route path="space-types" element={<StaffSpaceTypesPage />} />
+              <Route path="spaces" element={<StaffSpacesPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

@@ -321,6 +321,15 @@
   background: var(--cabinet-logout-hover);
 }
 
+.cabinet-password-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+}
+.cabinet-password-btn:disabled:hover {
+  background: var(--cabinet-logout-bg);
+}
+
 .cabinet-edit-btn:hover {
   opacity: 0.9;
 }

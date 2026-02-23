@@ -3,12 +3,55 @@ import { useAuth, ApiError } from '../context/AuthContext'
 import './HomePage.css'
 
 type AuthMode = 'login' | 'register'
+type Theme = 'light' | 'dark'
+
+const THEME_STORAGE_KEY = 'theme'
+
+function readStoredTheme(): Theme {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY)
+  if (stored === 'dark' || stored === 'light') return stored
+  if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+  return 'light'
+}
+
+function SunIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <line x1="12" y1="2" x2="12" y2="4" />
+      <line x1="12" y1="20" x2="12" y2="22" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="2" y1="12" x2="4" y2="12" />
+      <line x1="20" y1="12" x2="22" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  )
+}
+
+function MoonIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  )
+}
 
 export default function HomePage() {
   const { user, login, register, logout } = useAuth()
+  const [theme, setTheme] = useState<Theme>(readStoredTheme)
   const [mode, setMode] = useState<AuthMode>('login')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const toggleTheme = () => {
+    setTheme((t) => {
+      const next = t === 'light' ? 'dark' : 'light'
+      localStorage.setItem(THEME_STORAGE_KEY, next)
+      return next
+    })
+  }
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -36,15 +79,20 @@ export default function HomePage() {
 
   if (user) {
     return (
-      <div className="home">
+      <div className="home" data-theme={theme}>
         <header className="home-header">
           <div className="home-header-left">
             <h1 className="home-logo">CMS</h1>
             <p className="home-subtitle">Coworking Management System</p>
           </div>
-          <button type="button" className="home-header-logout" onClick={logout}>
-            Выход
-          </button>
+          <div className="home-header-right">
+            <button type="button" className="home-theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'} aria-label={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}>
+              {theme === 'light' ? <MoonIcon size={22} /> : <SunIcon size={22} />}
+            </button>
+            <button type="button" className="home-header-logout" onClick={logout}>
+              Выход
+            </button>
+          </div>
         </header>
         <section className="home-content">
           <div className="auth-card auth-card--logged-in">
@@ -58,11 +106,16 @@ export default function HomePage() {
   }
 
   return (
-    <div className="home">
+    <div className="home" data-theme={theme}>
       <header className="home-header">
         <div className="home-header-left">
           <h1 className="home-logo">CMS</h1>
           <p className="home-subtitle">Coworking Management System</p>
+        </div>
+        <div className="home-header-right">
+          <button type="button" className="home-theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'} aria-label={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}>
+            {theme === 'light' ? <MoonIcon size={22} /> : <SunIcon size={22} />}
+          </button>
         </div>
       </header>
       <section className="home-content">

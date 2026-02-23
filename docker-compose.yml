@@ -10,6 +10,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # :z on Fedora/RHEL lets the container read the file (SELinux)
+      - ./db/ddl.sql:/docker-entrypoint-initdb.d/01-ddl.sql:z
 
 volumes:
   pgdata:

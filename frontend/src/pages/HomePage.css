@@ -100,6 +100,45 @@
 
 .home-header-left {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.home-header-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.home-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-header-link {
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--home-text);
+  text-decoration: none;
+  border: 1px solid var(--home-border);
+  border-radius: 0;
+  background: var(--home-card-bg);
+}
+
+.home-header-link:hover {
+  opacity: 0.9;
+  text-decoration: none;
+  color: var(--home-text);
+}
+
+.home-header-link--active {
+  font-weight: 700;
+  background: var(--home-switcher-bg);
+  border-color: var(--home-text-muted);
 }
 
 .home-header-right {

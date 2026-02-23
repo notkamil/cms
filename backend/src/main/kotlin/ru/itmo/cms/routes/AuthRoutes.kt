@@ -5,16 +5,26 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import ru.itmo.cms.models.AuthResponse
 import ru.itmo.cms.models.LoginRequest
 import ru.itmo.cms.models.MemberResponse
+import ru.itmo.cms.models.PatchMeRequest
+import ru.itmo.cms.models.PutPasswordRequest
 import ru.itmo.cms.models.RegisterRequest
 import ru.itmo.cms.repository.MemberRepository
 import ru.itmo.cms.repository.MemberRow
+import ru.itmo.cms.repository.ProfileUpdateException
+import ru.itmo.cms.util.normalizeEmail
+import ru.itmo.cms.util.normalizePhone
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.*
+import java.util.Locale
 
 fun Application.configureAuthRoutes() {
     val jwtConfig = environment.config.config("jwt")
@@ -27,23 +37,44 @@ fun Application.configureAuthRoutes() {
         post("/api/auth/register") {
             try {
                 val body = call.receive<RegisterRequest>()
-                val trimmedEmail = body.email.trim().lowercase()
-                if (MemberRepository.findByEmail(trimmedEmail) != null) {
-                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Email already registered"))
+                val email = normalizeEmail(body.email).takeIf { it.isNotBlank() }
+                    ?: run {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите email"))
+                        return@post
+                    }
+                if (MemberRepository.findByEmail(email) != null) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Этот email уже зарегистрирован"))
+                    return@post
+                }
+                val phone = normalizePhone(body.phone)
+                    ?: run {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Номер должен быть в международном формате (E.164), например +79001234567"))
+                        return@post
+                    }
+                if (MemberRepository.findByPhone(phone) != null) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Этот номер телефона уже зарегистрирован"))
                     return@post
                 }
                 val passwordHash = BCrypt.withDefaults().hashToString(12, body.password.toCharArray())
                 val member = MemberRepository.create(
                     name = body.name.trim(),
-                    email = trimmedEmail,
-                    phone = body.phone.trim(),
+                    email = email,
+                    phone = phone,
                     passwordHash = passwordHash
                 )
                 val token = createToken(member.memberId, member.email, secret, issuer, audience, expiresInSeconds)
                 call.respond(AuthResponse(token = token, member = member.toMemberResponse()))
             } catch (e: Exception) {
                 call.application.log.error("Register failed", e)
-                call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                val (status, message) = when {
+                    e.message?.contains("members_email_key") == true ->
+                        HttpStatusCode.Conflict to "Этот email уже зарегистрирован"
+                    e.message?.contains("members_phone_key") == true ->
+                        HttpStatusCode.Conflict to "Этот номер телефона уже зарегистрирован"
+                    else ->
+                        HttpStatusCode.BadRequest to (e.message ?: "Не удалось зарегистрироваться")
+                }
+                call.respond(status, mapOf("error" to message))
             }
         }
 
@@ -65,6 +96,93 @@ fun Application.configureAuthRoutes() {
             } catch (e: Exception) {
                 call.application.log.error("Login failed", e)
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+            }
+        }
+
+        authenticate("jwt") {
+            get("/api/me") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@get
+                }
+                val member = MemberRepository.findById(memberId)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found"))
+                        return@get
+                    }
+                call.respond(member.toMemberResponse())
+            }
+
+            patch("/api/me") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@patch
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@patch
+                }
+                try {
+                    val body = call.receive<PatchMeRequest>()
+                    if (body.name == null && body.email == null && body.phone == null) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Provide at least one of name, email, phone"))
+                        return@patch
+                    }
+                    val member = MemberRepository.updateProfileWithAudit(
+                        memberId = memberId,
+                        currentPassword = body.currentPassword,
+                        name = body.name,
+                        email = body.email,
+                        phone = body.phone
+                    )
+                    call.respond(member.toMemberResponse())
+                } catch (e: ProfileUpdateException) {
+                    when (e) {
+                        is ProfileUpdateException.InvalidPassword ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+                        is ProfileUpdateException.EmailAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to e.message))
+                        is ProfileUpdateException.PhoneAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to e.message))
+                        is ProfileUpdateException.PhoneNotE164 ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+                        is ProfileUpdateException.NothingChanged ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+                    }
+                } catch (e: Exception) {
+                    call.application.log.error("PATCH /api/me failed", e)
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                }
+            }
+
+            put("/api/me/password") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@put
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@put
+                }
+                try {
+                    val body = call.receive<PutPasswordRequest>()
+                    val newPasswordHash = BCrypt.withDefaults().hashToString(12, body.newPassword.toCharArray())
+                    MemberRepository.changePasswordWithAudit(
+                        memberId = memberId,
+                        currentPassword = body.currentPassword,
+                        newPasswordHash = newPasswordHash
+                    )
+                    call.respond(HttpStatusCode.OK, mapOf("ok" to true))
+                } catch (e: ProfileUpdateException.InvalidPassword) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Invalid password")))
+                } catch (e: Exception) {
+                    call.application.log.error("PUT /api/me/password failed", e)
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                }
             }
         }
     }
@@ -93,5 +211,7 @@ private fun MemberRow.toMemberResponse() = MemberResponse(
     email = email,
     phone = phone,
     balance = balance.toDouble(),
-    registeredAt = this.registeredAt.toString()
+    registeredAt = this.registeredAt.atZone(ZoneId.systemDefault()).format(
+        DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm z", Locale("ru"))
+    )
 )

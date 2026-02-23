@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import HomePage from './pages/HomePage'
+import CabinetPage from './pages/CabinetPage'
 import './App.css'
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/cabinet" element={<CabinetPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

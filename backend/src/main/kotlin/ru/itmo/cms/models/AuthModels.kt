@@ -31,3 +31,17 @@ data class AuthResponse(
     val token: String,
     val member: MemberResponse
 )
+
+@Serializable
+data class PatchMeRequest(
+    val name: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    val currentPassword: String
+)
+
+@Serializable
+data class PutPasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)

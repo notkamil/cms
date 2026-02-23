@@ -142,3 +142,18 @@ CREATE TABLE TransactionSubscriptions (
     TransactionId  INT NOT NULL PRIMARY KEY REFERENCES Transactions (TransactionId),
     SubscriptionId INT NOT NULL             REFERENCES Subscriptions (SubscriptionId)
 );
+
+-- Audit log for profile and password changes (old/new values per field)
+CREATE TABLE MemberProfileAudit (
+    AuditId         INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    MemberId        INT          NOT NULL REFERENCES Members (MemberId),
+    ChangedAt       TIMESTAMP    NOT NULL DEFAULT NOW(),
+    OldName         VARCHAR(64)  NOT NULL,
+    NewName         VARCHAR(64)  NOT NULL,
+    OldEmail        VARCHAR(64)  NOT NULL,
+    NewEmail        VARCHAR(64)  NOT NULL,
+    OldPhone        VARCHAR(20)  NOT NULL,
+    NewPhone        VARCHAR(20)  NOT NULL,
+    OldPasswordHash VARCHAR(255) NOT NULL,
+    NewPasswordHash VARCHAR(255) NOT NULL
+);

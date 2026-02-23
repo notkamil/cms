@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link, NavLink } from 'react-router-dom'
 import { useAuth, ApiError } from '../context/AuthContext'
 import './HomePage.css'
 
@@ -82,8 +83,13 @@ export default function HomePage() {
       <div className="home" data-theme={theme}>
         <header className="home-header">
           <div className="home-header-left">
-            <h1 className="home-logo">CMS</h1>
-            <p className="home-subtitle">Coworking Management System</p>
+            <div className="home-header-brand">
+              <h1 className="home-logo">CMS</h1>
+            </div>
+            <nav className="home-header-nav">
+              <NavLink to="/" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`} end>Главная</NavLink>
+              <NavLink to="/cabinet" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`}>Личный кабинет</NavLink>
+            </nav>
           </div>
           <div className="home-header-right">
             <button type="button" className="home-theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'} aria-label={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}>
@@ -109,8 +115,10 @@ export default function HomePage() {
     <div className="home" data-theme={theme}>
       <header className="home-header">
         <div className="home-header-left">
-          <h1 className="home-logo">CMS</h1>
-          <p className="home-subtitle">Coworking Management System</p>
+          <div className="home-header-brand">
+            <h1 className="home-logo">CMS</h1>
+            <p className="home-subtitle">Coworking Management System</p>
+          </div>
         </div>
         <div className="home-header-right">
           <button type="button" className="home-theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'} aria-label={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}>

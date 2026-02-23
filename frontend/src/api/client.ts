@@ -85,5 +85,47 @@ export async function post<T = unknown>(path: string, body: object): Promise<T> 
   return data as T
 }
 
+/**
+ * PATCH request with JSON body. Throws ApiError on non-2xx response.
+ */
+export async function patch<T = unknown>(path: string, body: object): Promise<T> {
+  const url = buildUrl(path)
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: buildHeaders(true),
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new ApiError(
+      (data as { error?: string })?.error ?? res.statusText,
+      res.status,
+      data
+    )
+  }
+  return data as T
+}
+
+/**
+ * PUT request with JSON body. Throws ApiError on non-2xx response.
+ */
+export async function put<T = unknown>(path: string, body: object): Promise<T> {
+  const url = buildUrl(path)
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: buildHeaders(true),
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new ApiError(
+      (data as { error?: string })?.error ?? res.statusText,
+      res.status,
+      data
+    )
+  }
+  return data as T
+}
+
 export { getToken }
 export { STORAGE_TOKEN_KEY }

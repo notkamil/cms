@@ -45,6 +45,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string, phone: string) => Promise<void>
   logout: () => void
+  updateUser: (user: User) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -88,9 +89,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.removeItem(USER_STORAGE_KEY)
   }, [])
 
+  const updateUser = useCallback((next: User) => {
+    setUser(next)
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(next))
+  }, [])
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, token, login, register, logout }),
-    [user, token, login, register, logout]
+    () => ({ user, token, login, register, logout, updateUser }),
+    [user, token, login, register, logout, updateUser]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

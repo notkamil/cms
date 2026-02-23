@@ -29,18 +29,21 @@ yarn-error.log*
 dist/
 frontend/dist/
 
-# --- Переменные окружения и секреты ---
+# --- Environment and secrets ---
 .env
 .env.local
 .env.*.local
 *.pem
 
-# --- ОС ---
+# --- OS ---
 .DS_Store
 Thumbs.db
 
-# --- Прочее ---
+# --- Other ---
 *.bak
 *.tmp
 *.temp
 .cache/
+
+# Local (scripts, logs, local config)
+local/

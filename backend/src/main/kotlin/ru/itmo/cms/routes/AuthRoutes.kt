@@ -15,17 +15,20 @@ import ru.itmo.cms.models.LoginRequest
 import ru.itmo.cms.models.MemberResponse
 import ru.itmo.cms.models.DepositRequest
 import ru.itmo.cms.models.PatchMeRequest
+import ru.itmo.cms.models.TransactionResponse
 import ru.itmo.cms.models.PutPasswordRequest
 import ru.itmo.cms.models.RegisterRequest
 import ru.itmo.cms.repository.MemberRepository
 import ru.itmo.cms.repository.MemberRow
 import ru.itmo.cms.repository.ProfileUpdateException
+import ru.itmo.cms.repository.TransactionRow
+import ru.itmo.cms.repository.TransactionType
 import ru.itmo.cms.util.normalizeEmail
 import ru.itmo.cms.util.normalizePhone
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.*
 import java.util.Locale
+import java.util.*
 
 fun Application.configureAuthRoutes() {
     val jwtConfig = environment.config.config("jwt")
@@ -116,6 +119,20 @@ fun Application.configureAuthRoutes() {
                         return@get
                     }
                 call.respond(member.toMemberResponse())
+            }
+
+            get("/api/me/transactions") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@get
+                }
+                val rows = MemberRepository.findTransactionsByMemberId(memberId)
+                val list = rows.map { it.toTransactionResponse() }
+                call.respond(list)
             }
 
             patch("/api/me") {
@@ -254,3 +271,18 @@ private fun MemberRow.toMemberResponse() = MemberResponse(
         DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm z", Locale.of("ru"))
     )
 )
+
+private fun TransactionRow.toTransactionResponse(): TransactionResponse {
+    val signed = when (transactionType) {
+        TransactionType.deposit, TransactionType.refund, TransactionType.bonus -> amount.toDouble()
+        TransactionType.payment, TransactionType.withdrawal -> -amount.toDouble()
+    }
+    val formattedDate = transactionDate.atZone(ZoneId.systemDefault()).format(
+        DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm z", Locale.of("ru"))
+    )
+    return TransactionResponse(
+        transactionDate = formattedDate,
+        amountChange = signed,
+        description = description.ifBlank { "—" }
+    )
+}

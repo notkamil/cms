@@ -16,6 +16,13 @@ interface Me {
   registeredAt: string
 }
 
+/** Backend TransactionResponse */
+interface TransactionItem {
+  transactionDate: string
+  amountChange: number
+  description: string
+}
+
 type Theme = 'light' | 'dark'
 const THEME_STORAGE_KEY = 'theme'
 
@@ -75,6 +82,7 @@ export default function CabinetPage() {
   const [depositAmount, setDepositAmount] = useState('')
   const [depositError, setDepositError] = useState<string | null>(null)
   const [depositLoading, setDepositLoading] = useState(false)
+  const [transactions, setTransactions] = useState<TransactionItem[]>([])
   const onLogoTripleClick = useTripleClick(() => navigate('/cms'))
 
   useEffect(() => {
@@ -99,6 +107,15 @@ export default function CabinetPage() {
       })
     return () => { cancelled = true }
   }, [token, navigate])
+
+  useEffect(() => {
+    if (!token || !me) return
+    let cancelled = false
+    get<TransactionItem[]>('/api/me/transactions')
+      .then((data) => { if (!cancelled) setTransactions(data) })
+      .catch(() => { if (!cancelled) setTransactions([]) })
+    return () => { cancelled = true }
+  }, [token, me])
 
   useEffect(() => {
     if (!loading) return
@@ -184,6 +201,8 @@ export default function CabinetPage() {
       const updated = await post<Me>('/api/me/balance/deposit', { amount: trimmed })
       setMe(updated)
       updateUser(updated)
+      const list = await get<TransactionItem[]>('/api/me/transactions')
+      setTransactions(list)
       closeDepositModal()
     } catch (err) {
       setDepositError(err instanceof ApiError ? err.message : 'Не удалось пополнить баланс')
@@ -283,17 +302,6 @@ export default function CabinetPage() {
           ) : null
         ) : me ? (
           <>
-            <section className="cabinet-balance-section">
-              <div className="cabinet-balance-row">
-                <div>
-                  <p className="cabinet-balance-label">Баланс</p>
-                  <p className="cabinet-balance-value">{me.balance} ₽</p>
-                </div>
-                <button type="button" className="cabinet-deposit-btn" onClick={openDepositModal}>
-                  Пополнить баланс
-                </button>
-              </div>
-            </section>
             <table className="cabinet-table">
               <caption className="cabinet-table-caption">Данные профиля</caption>
               <tbody>
@@ -323,6 +331,46 @@ export default function CabinetPage() {
                 Изменить пароль
               </button>
             </div>
+
+            <section className="cabinet-balance-section">
+              <div className="cabinet-balance-row">
+                <div>
+                  <p className="cabinet-balance-label">Баланс</p>
+                  <p className="cabinet-balance-value">{me.balance} ₽</p>
+                </div>
+                <button type="button" className="cabinet-deposit-btn" onClick={openDepositModal}>
+                  Пополнить баланс
+                </button>
+              </div>
+            </section>
+
+            <section className="cabinet-history-section">
+              <h2 className="cabinet-history-title">История транзакций</h2>
+              {transactions.length === 0 ? (
+                <p className="cabinet-history-empty">Пока нет операций</p>
+              ) : (
+                <table className="cabinet-table cabinet-history-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Время</th>
+                      <th scope="col">Сумма</th>
+                      <th scope="col">Комментарий</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx, i) => (
+                      <tr key={i}>
+                        <td>{tx.transactionDate}</td>
+                        <td className={tx.amountChange >= 0 ? 'cabinet-amount-in' : 'cabinet-amount-out'}>
+                          {tx.amountChange >= 0 ? '+' : ''}{tx.amountChange.toFixed(2)} ₽
+                        </td>
+                        <td>{tx.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </section>
           </>
         ) : (
           <p className="cabinet-error">Не удалось загрузить данные. Проверьте авторизацию.</p>

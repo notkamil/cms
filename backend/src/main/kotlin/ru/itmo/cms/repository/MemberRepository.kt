@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import ru.itmo.cms.util.normalizeEmail
@@ -20,6 +21,15 @@ data class MemberRow(
     val balance: java.math.BigDecimal,
     val registeredAt: LocalDateTime,
     val passwordHash: String
+)
+
+data class TransactionRow(
+    val transactionId: Int,
+    val memberId: Int,
+    val amount: java.math.BigDecimal,
+    val transactionType: TransactionType,
+    val transactionDate: LocalDateTime,
+    val description: String
 )
 
 fun ResultRow.toMemberRow() = MemberRow(
@@ -184,6 +194,26 @@ object MemberRepository {
             it[TransactionsTable.description] = "Пополнение"
         }
         MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
+    }
+
+    /**
+     * История транзакций по участнику (новые сверху).
+     * Возвращает список (transactionDate, amount, transactionType, description).
+     */
+    fun findTransactionsByMemberId(memberId: Int): List<TransactionRow> = transaction {
+        TransactionsTable.selectAll()
+            .where { TransactionsTable.memberId eq memberId }
+            .orderBy(TransactionsTable.transactionDate, SortOrder.DESC)
+            .map { row ->
+                TransactionRow(
+                    transactionId = row[TransactionsTable.transactionId],
+                    memberId = row[TransactionsTable.memberId],
+                    amount = row[TransactionsTable.amount],
+                    transactionType = row[TransactionsTable.transactionType],
+                    transactionDate = row[TransactionsTable.transactionDate],
+                    description = row[TransactionsTable.description]
+                )
+            }
     }
 
     fun create(name: String, email: String, phone: String, passwordHash: String): MemberRow = transaction {

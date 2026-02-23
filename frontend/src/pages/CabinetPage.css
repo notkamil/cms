@@ -197,8 +197,9 @@
 .cabinet-main {
   flex: 1;
   padding: 2rem;
-  max-width: 560px;
-  margin: 0 auto;
+  max-width: 720px;
+  margin: 0;
+  margin-right: auto;
   width: 100%;
 }
 
@@ -246,10 +247,11 @@
 }
 
 .cabinet-balance-section {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
   padding: 1.25rem;
   border: 1px solid var(--cabinet-border);
   background: var(--cabinet-card-bg);
-  margin-bottom: 1.5rem;
 }
 
 .cabinet-balance-row {
@@ -321,6 +323,46 @@
 
 .cabinet-edit-btn:hover {
   opacity: 0.9;
+}
+
+/* История транзакций */
+.cabinet-history-section {
+  margin-top: 2rem;
+  padding: 0;
+}
+
+.cabinet-history-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--cabinet-text);
+}
+
+.cabinet-history-empty {
+  margin: 0;
+  padding: 1rem;
+  color: var(--cabinet-text-muted);
+  background: var(--cabinet-card-bg);
+  border: 1px solid var(--cabinet-border);
+}
+
+.cabinet-history-table thead th {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--cabinet-border);
+  font-weight: 600;
+  text-align: left;
+  background: var(--cabinet-header-bg);
+  color: var(--cabinet-text);
+}
+
+.cabinet-amount-in {
+  color: var(--cabinet-deposit-border);
+  font-weight: 600;
+}
+
+.cabinet-amount-out {
+  color: var(--cabinet-logout-text);
+  font-weight: 600;
 }
 
 /* Modal */

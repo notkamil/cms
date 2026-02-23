@@ -4,6 +4,7 @@ import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.datetime
 import org.postgresql.util.PGobject
+import ru.itmo.cms.util.transactionTypeFromDb
 
 object TransactionsTable : Table("transactions") {
     val transactionId = integer("transactionid").autoIncrement()
@@ -12,7 +13,7 @@ object TransactionsTable : Table("transactions") {
     val transactionType: Column<TransactionType> = customEnumeration(
         name = "transactiontype",
         sql = "transaction_type",
-        fromDb = { value -> TransactionType.valueOf((value as PGobject).value!!) },
+        fromDb = { transactionTypeFromDb(it) },
         toDb = { PGTransactionType(it) }
     )
     val transactionDate = datetime("transactiondate")

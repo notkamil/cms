@@ -50,3 +50,11 @@ data class PutPasswordRequest(
 data class DepositRequest(
     val amount: String
 )
+
+/** Элемент истории транзакций: время, изменение баланса (положительное — приход, отрицательное — расход), комментарий */
+@Serializable
+data class TransactionResponse(
+    val transactionDate: String,
+    val amountChange: Double,
+    val description: String
+)

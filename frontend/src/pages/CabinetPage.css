@@ -48,6 +48,14 @@
   box-sizing: border-box;
 }
 
+.cabinet-loading-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
 .cabinet-loading,
 .cabinet-error {
   padding: 2rem;
@@ -86,6 +94,10 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.cabinet-logo-row--clickable {
+  cursor: pointer;
 }
 
 .cabinet-logo-img {
@@ -184,6 +196,14 @@
   max-width: 560px;
   margin: 0 auto;
   width: 100%;
+}
+
+.cabinet-main--centered {
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
 }
 
 .cabinet-table {

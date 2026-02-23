@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth, ApiError } from '../context/AuthContext'
 import { get, patch, put } from '../api/client'
+import { LoadingLogo } from '../components/LoadingLogo'
+import { useTripleClick } from '../hooks/useTripleClick'
 import './CabinetPage.css'
 
 /** Backend MemberResponse */
@@ -54,6 +56,8 @@ export default function CabinetPage() {
   const [theme, setTheme] = useState<Theme>(readStoredTheme)
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingElapsed, setLoadingElapsed] = useState(0)
+  const loadingStartRef = useRef<number | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
@@ -67,12 +71,15 @@ export default function CabinetPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const onLogoTripleClick = useTripleClick(() => navigate('/cms'))
 
   useEffect(() => {
     if (!token) {
       navigate('/', { replace: true })
       return
     }
+    loadingStartRef.current = Date.now()
+    setLoadingElapsed(0)
     let cancelled = false
     get<Me>('/api/me')
       .then((data) => {
@@ -88,6 +95,15 @@ export default function CabinetPage() {
       })
     return () => { cancelled = true }
   }, [token, navigate])
+
+  useEffect(() => {
+    if (!loading) return
+    const start = loadingStartRef.current ?? Date.now()
+    const id = setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [loading])
 
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
@@ -182,20 +198,12 @@ export default function CabinetPage() {
     return null
   }
 
-  if (loading) {
-    return (
-      <div className="cabinet" data-theme={theme}>
-        <p className="cabinet-loading">Загрузка…</p>
-      </div>
-    )
-  }
-
   return (
     <div className="cabinet" data-theme={theme}>
       <header className="cabinet-header">
         <div className="cabinet-header-left">
           <div className="cabinet-header-brand">
-            <div className="cabinet-logo-row">
+            <div className="cabinet-logo-row cabinet-logo-row--clickable" onClick={onLogoTripleClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onLogoTripleClick(e as unknown as React.MouseEvent)} aria-label="Тройной клик — загрузка">
               <img src={theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'} alt="" className="cabinet-logo-img" width={32} height={32} />
               <h1 className="cabinet-logo">CMS</h1>
             </div>
@@ -222,7 +230,13 @@ export default function CabinetPage() {
       </header>
 
       <main className="cabinet-main">
-        {me ? (
+        {loading ? (
+          loadingElapsed >= 1 ? (
+            <div className="cabinet-loading-block">
+              <LoadingLogo theme={theme} size={64} variant="smooth" />
+            </div>
+          ) : null
+        ) : me ? (
           <>
             <table className="cabinet-table">
               <caption className="cabinet-table-caption">Данные профиля</caption>

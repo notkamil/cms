@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth, ApiError } from '../context/AuthContext'
+import { useTripleClick } from '../hooks/useTripleClick'
 import './HomePage.css'
 
 type AuthMode = 'login' | 'register'
@@ -40,11 +41,13 @@ function MoonIcon({ size = 24 }: { size?: number }) {
 }
 
 export default function HomePage() {
+  const navigate = useNavigate()
   const { user, login, register, logout } = useAuth()
   const [theme, setTheme] = useState<Theme>(readStoredTheme)
   const [mode, setMode] = useState<AuthMode>('login')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const onLogoTripleClick = useTripleClick(() => navigate('/cms'))
 
   const toggleTheme = () => {
     setTheme((t) => {
@@ -89,7 +92,7 @@ export default function HomePage() {
         <header className="home-header">
           <div className="home-header-left">
             <div className="home-header-brand">
-              <div className="home-logo-row">
+              <div className="home-logo-row home-logo-row--clickable" onClick={onLogoTripleClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onLogoTripleClick(e as unknown as React.MouseEvent)} aria-label="Тройной клик — загрузка">
                 <img src={theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'} alt="" className="home-logo-img" width={32} height={32} />
                 <h1 className="home-logo">CMS</h1>
               </div>
@@ -123,7 +126,7 @@ export default function HomePage() {
     <div className="home" data-theme={theme}>
       <header className="home-header">
         <div className="home-header-left">
-          <div className="home-header-brand home-header-brand--with-subtitle">
+          <div className="home-header-brand home-header-brand--with-subtitle home-header-brand--clickable" onClick={onLogoTripleClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onLogoTripleClick(e as unknown as React.MouseEvent)} aria-label="Тройной клик — загрузка">
             <div className="home-logo-tall-wrap">
               <img src={theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'} alt="" className="home-logo-img home-logo-img--tall" />
             </div>

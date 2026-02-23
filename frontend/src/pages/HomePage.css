@@ -147,6 +147,11 @@
   gap: 0.5rem;
 }
 
+.home-logo-row--clickable,
+.home-header-brand--clickable {
+  cursor: pointer;
+}
+
 .home-logo-img {
   flex-shrink: 0;
   width: 2rem;

@@ -1,0 +1,3 @@
+.loading-logo .loading-logo-tile {
+  transition: x 0.25s ease, y 0.25s ease;
+}

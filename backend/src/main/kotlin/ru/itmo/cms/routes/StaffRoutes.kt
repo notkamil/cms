@@ -11,6 +11,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import ru.itmo.cms.models.*
+import ru.itmo.cms.repository.AmenityRepository
+import ru.itmo.cms.repository.AmenityRow
 import ru.itmo.cms.repository.SpaceRepository
 import ru.itmo.cms.repository.SpaceRow
 import ru.itmo.cms.repository.SpaceTypeRepository
@@ -269,6 +271,118 @@ fun Application.configureStaffRoutes() {
                 SpaceRepository.delete(id)
                 call.respond(HttpStatusCode.NoContent)
             }
+
+            // ----- Amenities -----
+            get("/api/staff/amenities") {
+                val list = AmenityRepository.findAll().map { it.toAmenityResponse() }
+                call.respond(list)
+            }
+            post("/api/staff/amenities") {
+                val body = call.receive<CreateAmenityRequest>()
+                val name = body.name.trim()
+                if (name.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название обязательно"))
+                    return@post
+                }
+                if (AmenityRepository.findByName(name) != null) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Удобство с таким названием уже существует"))
+                    return@post
+                }
+                val description = body.description?.trim() ?: ""
+                val created = AmenityRepository.create(name, description)
+                call.respond(HttpStatusCode.Created, created.toAmenityResponse())
+            }
+            get("/api/staff/amenities/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                val row = AmenityRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Удобство не найдено"))
+                        return@get
+                    }
+                call.respond(row.toAmenityResponse())
+            }
+            patch("/api/staff/amenities/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@patch
+                }
+                val current = AmenityRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Удобство не найдено"))
+                        return@patch
+                    }
+                val body = call.receive<UpdateAmenityRequest>()
+                if (body.name == null && body.description == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите name и/или description"))
+                    return@patch
+                }
+                val newName = body.name?.trim()
+                if (newName != null && newName.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название не может быть пустым"))
+                    return@patch
+                }
+                if (newName != null) {
+                    val existing = AmenityRepository.findByName(newName)
+                    if (existing != null && existing.amenityId != id) {
+                        call.respond(HttpStatusCode.Conflict, mapOf("error" to "Удобство с таким названием уже существует"))
+                        return@patch
+                    }
+                }
+                val updated = AmenityRepository.update(id, name = body.name?.trim(), description = body.description?.trim())
+                call.respond(updated!!.toAmenityResponse())
+            }
+            get("/api/staff/amenities/{id}/spaces") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                if (AmenityRepository.findById(id) == null) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Удобство не найдено"))
+                    return@get
+                }
+                val spaces = AmenityRepository.getSpacesUsingAmenity(id)
+                    .map { SpaceSummaryResponse(spaceId = it.spaceId, name = it.name) }
+                call.respond(spaces)
+            }
+            delete("/api/staff/amenities/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@delete
+                }
+                val current = AmenityRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Удобство не найдено"))
+                        return@delete
+                    }
+                val spaces = AmenityRepository.getSpacesUsingAmenity(id)
+                if (spaces.isNotEmpty()) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        DeleteAmenityConflictResponse(
+                            error = "Невозможно удалить: удобство привязано к пространствам",
+                            spaces = spaces.map { SpaceSummaryResponse(spaceId = it.spaceId, name = it.name) }
+                        )
+                    )
+                    return@delete
+                }
+                AmenityRepository.delete(id)
+                call.respond(HttpStatusCode.NoContent)
+            }
+
+            // ----- Space-Amenity assignments -----
+            get("/api/staff/space-amenities") {
+                val pairs = AmenityRepository.getAllAssignments()
+                call.respond(pairs.map { SpaceAmenityAssignment(spaceId = it.first, amenityId = it.second) })
+            }
+            put("/api/staff/space-amenities") {
+                val body = call.receive<PutSpaceAmenitiesRequest>()
+                val pairs = body.assignments.map { it.spaceId to it.amenityId }
+                AmenityRepository.setAssignments(pairs)
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }
@@ -313,5 +427,11 @@ private fun SpaceRow.toSpaceResponse() = SpaceResponse(
     floor = floor,
     capacity = capacity,
     status = status,
+    description = description
+)
+
+private fun AmenityRow.toAmenityResponse() = AmenityResponse(
+    id = amenityId,
+    name = name,
     description = description
 )

@@ -72,3 +72,52 @@
 .staff-conflict-table td {
   color: var(--cabinet-text);
 }
+
+/* Матрица пространства × удобства */
+.staff-matrix-wrap {
+  overflow-x: auto;
+  margin-top: 1.5rem;
+}
+.staff-matrix-table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  background: var(--cabinet-card-bg);
+  border: 1px solid var(--cabinet-border);
+}
+.staff-matrix-table.staff-matrix-table--fit {
+  width: max-content;
+}
+.staff-matrix-table th,
+.staff-matrix-table td {
+  padding: 0.5rem 0.4rem;
+  border: 1px solid var(--cabinet-border);
+  color: var(--cabinet-text);
+  vertical-align: middle;
+  text-align: center;
+}
+/* Переопределяем .cabinet-table th { width: 40% } — в матрице ширина по контенту */
+.staff-matrix-table th {
+  width: auto;
+}
+.staff-matrix-table th.staff-matrix-amenity {
+  text-align: left;
+  font-weight: 600;
+  background: var(--cabinet-header-bg);
+}
+.staff-matrix-table th.staff-matrix-space {
+  font-weight: 600;
+  background: var(--cabinet-header-bg);
+  white-space: nowrap;
+}
+.staff-matrix-table td {
+  background: var(--cabinet-card-bg);
+}
+.staff-matrix-table input[type="checkbox"] {
+  cursor: pointer;
+}
+.staff-matrix-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}

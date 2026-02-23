@@ -101,6 +101,7 @@ object SpaceRepository {
     }
 
     fun delete(spaceId: Int): Boolean = transaction {
+        SpaceAmenitiesTable.deleteWhere { SpaceAmenitiesTable.spaceId eq spaceId }
         SpacesTable.deleteWhere { SpacesTable.spaceId eq spaceId } > 0
     }
 }

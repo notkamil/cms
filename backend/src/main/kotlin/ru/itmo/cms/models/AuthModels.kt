@@ -143,3 +143,41 @@ data class UpdateSpaceRequest(
     val description: String? = null,
     val status: String? = null
 )
+
+// ----- Staff: Amenities -----
+
+@Serializable
+data class AmenityResponse(
+    val id: Int,
+    val name: String,
+    val description: String
+)
+
+@Serializable
+data class CreateAmenityRequest(
+    val name: String,
+    val description: String? = null
+)
+
+@Serializable
+data class UpdateAmenityRequest(
+    val name: String? = null,
+    val description: String? = null
+)
+
+@Serializable
+data class DeleteAmenityConflictResponse(
+    val error: String,
+    val spaces: List<SpaceSummaryResponse>
+)
+
+@Serializable
+data class SpaceAmenityAssignment(
+    val spaceId: Int,
+    val amenityId: Int
+)
+
+@Serializable
+data class PutSpaceAmenitiesRequest(
+    val assignments: List<SpaceAmenityAssignment>
+)

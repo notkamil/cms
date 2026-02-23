@@ -114,14 +114,15 @@ export async function patch<T = unknown>(path: string, body: object, useStaffTok
 /**
  * PUT request with JSON body. Throws ApiError on non-2xx response.
  */
-export async function put<T = unknown>(path: string, body: object): Promise<T> {
+export async function put<T = unknown>(path: string, body: object, useStaffToken = false): Promise<T> {
   const url = buildUrl(path)
   const res = await fetch(url, {
     method: 'PUT',
-    headers: buildHeaders(true),
+    headers: buildHeaders(true, useStaffToken),
     body: JSON.stringify(body),
   })
-  const data = await res.json().catch(() => ({}))
+  const text = await res.text()
+  const data: unknown = text.trim() ? JSON.parse(text) : undefined
   if (!res.ok) {
     throw new ApiError(
       (data as { error?: string })?.error ?? res.statusText,

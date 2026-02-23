@@ -12,8 +12,10 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import ru.itmo.cms.repository.MembersTable
 import ru.itmo.cms.routes.configureAuthRoutes
 
 fun Application.module() {
@@ -74,7 +76,7 @@ fun Application.module() {
         }
         get("/api/health") {
             val dbStatus = try {
-                transaction { exec("SELECT 1") }
+                transaction { MembersTable.selectAll().limit(1).firstOrNull(); }
                 "connected"
             } catch (e: Exception) {
                 "error"

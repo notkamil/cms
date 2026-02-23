@@ -10,6 +10,8 @@
   --cabinet-error-text: #cc0000;
   --cabinet-edit-bg: #dae8fc;
   --cabinet-edit-border: #6c8ebf;
+  --cabinet-deposit-bg: #d5e8d4;
+  --cabinet-deposit-border: #82b366;
   --cabinet-logout-bg: #f8cecc;
   --cabinet-logout-border: #b85450;
   --cabinet-logout-text: #a94442;
@@ -37,6 +39,8 @@
   --cabinet-error-text: #ff8888;
   --cabinet-edit-bg: #2d3d5a;
   --cabinet-edit-border: #6c8ebf;
+  --cabinet-deposit-bg: #2d4a2d;
+  --cabinet-deposit-border: #82b366;
   --cabinet-logout-bg: #4a2020;
   --cabinet-logout-border: #b85450;
   --cabinet-logout-text: #ff8888;
@@ -241,6 +245,48 @@
   border-bottom: none;
 }
 
+.cabinet-balance-section {
+  padding: 1.25rem;
+  border: 1px solid var(--cabinet-border);
+  background: var(--cabinet-card-bg);
+  margin-bottom: 1.5rem;
+}
+
+.cabinet-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cabinet-balance-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cabinet-text-muted);
+}
+
+.cabinet-balance-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cabinet-text);
+}
+
+.cabinet-deposit-btn {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0;
+  border: 1px solid var(--cabinet-deposit-border);
+  background: var(--cabinet-deposit-bg);
+  color: var(--cabinet-text);
+  cursor: pointer;
+}
+
+.cabinet-deposit-btn:hover {
+  opacity: 0.9;
+}
+
 .cabinet-actions {
   display: flex;
   flex-wrap: wrap;
@@ -372,4 +418,9 @@
 .cabinet-modal-submit:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.cabinet-deposit-submit {
+  border-color: var(--cabinet-deposit-border);
+  background: var(--cabinet-deposit-bg);
 }

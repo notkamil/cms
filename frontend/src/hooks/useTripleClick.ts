@@ -10,7 +10,7 @@ export function useTripleClick(callback: () => void): (e: React.MouseEvent) => v
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   return useCallback(
-    (e: React.MouseEvent) => {
+    (_e: React.MouseEvent) => {
       countRef.current += 1
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       if (countRef.current >= 3) {

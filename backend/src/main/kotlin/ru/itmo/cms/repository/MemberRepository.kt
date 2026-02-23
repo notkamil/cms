@@ -1,11 +1,13 @@
 package ru.itmo.cms.repository
 
 import at.favre.lib.crypto.bcrypt.BCrypt
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import ru.itmo.cms.util.normalizeEmail
 import ru.itmo.cms.util.normalizePhone
 import java.time.LocalDateTime
@@ -33,19 +35,19 @@ fun ResultRow.toMemberRow() = MemberRow(
 object MemberRepository {
 
     fun findById(memberId: Int): MemberRow? = transaction {
-        MembersTable.select { MembersTable.memberId eq memberId }
+        MembersTable.selectAll().where { MembersTable.memberId eq memberId }
             .singleOrNull()
             ?.toMemberRow()
     }
 
     fun findByEmail(email: String): MemberRow? = transaction {
-        MembersTable.select { MembersTable.email eq email }
+        MembersTable.selectAll().where { MembersTable.email eq email }
             .singleOrNull()
             ?.toMemberRow()
     }
 
     fun findByPhone(phone: String): MemberRow? = transaction {
-        MembersTable.select { MembersTable.phone eq phone }
+        MembersTable.selectAll().where { MembersTable.phone eq phone }
             .singleOrNull()
             ?.toMemberRow()
     }
@@ -57,14 +59,14 @@ object MemberRepository {
         phone: String? = null,
         passwordHash: String? = null
     ): MemberRow? = transaction {
-        if (MembersTable.select { MembersTable.memberId eq memberId }.singleOrNull() == null) return@transaction null
-        MembersTable.update({ MembersTable.memberId eq memberId }) { stmt ->
+        if (MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull() == null) return@transaction null
+        MembersTable.update(where = { MembersTable.memberId eq memberId }) { stmt ->
             name?.let { v -> stmt[MembersTable.name] = v }
             email?.let { v -> stmt[MembersTable.email] = v }
             phone?.let { v -> stmt[MembersTable.phone] = v }
             passwordHash?.let { v -> stmt[MembersTable.passwordHash] = v }
         }
-        MembersTable.select { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
+        MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
     }
 
     /**
@@ -81,7 +83,7 @@ object MemberRepository {
         email: String? = null,
         phone: String? = null
     ): MemberRow = transaction {
-        val before = MembersTable.select { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
+        val before = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
             ?: throw ProfileUpdateException.InvalidPassword()
         if (!BCrypt.verifyer().verify(currentPassword.toCharArray(), before.passwordHash).verified) {
             throw ProfileUpdateException.InvalidPassword()
@@ -90,7 +92,7 @@ object MemberRepository {
         val newEmail = if (email != null) {
             val normalized = normalizeEmail(email).takeIf { it.isNotBlank() } ?: before.email
             if (normalized != before.email) {
-                val existing = MembersTable.select { MembersTable.email eq normalized }.singleOrNull()
+                val existing = MembersTable.selectAll().where { MembersTable.email eq normalized }.singleOrNull()
                 if (existing != null && existing[MembersTable.memberId] != memberId) {
                     throw ProfileUpdateException.EmailAlreadyUsed()
                 }
@@ -100,7 +102,7 @@ object MemberRepository {
         val newPhone = if (phone != null) {
             val normalized = normalizePhone(phone) ?: throw ProfileUpdateException.PhoneNotE164()
             if (normalized != before.phone) {
-                val existing = MembersTable.select { MembersTable.phone eq normalized }.singleOrNull()
+                val existing = MembersTable.selectAll().where { MembersTable.phone eq normalized }.singleOrNull()
                 if (existing != null && existing[MembersTable.memberId] != memberId) {
                     throw ProfileUpdateException.PhoneAlreadyUsed()
                 }
@@ -110,7 +112,7 @@ object MemberRepository {
         if (newName == before.name && newEmail == before.email && newPhone == before.phone) {
             throw ProfileUpdateException.NothingChanged()
         }
-        MembersTable.update({ MembersTable.memberId eq memberId }) { stmt ->
+        MembersTable.update(where = { MembersTable.memberId eq memberId }) { stmt ->
             stmt[MembersTable.name] = newName
             stmt[MembersTable.email] = newEmail
             stmt[MembersTable.phone] = newPhone
@@ -127,7 +129,7 @@ object MemberRepository {
             it[MemberProfileAuditTable.oldPasswordHash] = before.passwordHash
             it[MemberProfileAuditTable.newPasswordHash] = before.passwordHash
         }
-        MembersTable.select { MembersTable.memberId eq memberId }.singleOrNull()!!.toMemberRow()
+        MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull()!!.toMemberRow()
     }
 
     /**
@@ -139,12 +141,12 @@ object MemberRepository {
         currentPassword: String,
         newPasswordHash: String
     ): Unit = transaction {
-        val before = MembersTable.select { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
+        val before = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
             ?: throw ProfileUpdateException.InvalidPassword()
         if (!BCrypt.verifyer().verify(currentPassword.toCharArray(), before.passwordHash).verified) {
             throw ProfileUpdateException.InvalidPassword()
         }
-        MembersTable.update({ MembersTable.memberId eq memberId }) { stmt ->
+        MembersTable.update(where = { MembersTable.memberId eq memberId }) { stmt ->
             stmt[MembersTable.passwordHash] = newPasswordHash
         }
         MemberProfileAuditTable.insert {
@@ -159,6 +161,29 @@ object MemberRepository {
             it[MemberProfileAuditTable.oldPasswordHash] = before.passwordHash
             it[MemberProfileAuditTable.newPasswordHash] = newPasswordHash
         }
+    }
+
+    /**
+     * Пополнение баланса: увеличивает balance и записывает транзакцию типа deposit.
+     * Сумма должна быть не меньше 0.01.
+     * @return обновлённый MemberRow или null если участник не найден или сумма &lt; 0.01
+     */
+    fun deposit(memberId: Int, amount: java.math.BigDecimal): MemberRow? = transaction {
+        val minAmount = java.math.BigDecimal("0.01")
+        if (amount < minAmount) return@transaction null
+        val row = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull() ?: return@transaction null
+        val newBalance = row[MembersTable.balance] + amount
+        MembersTable.update(where = { MembersTable.memberId eq memberId }) {
+            it[MembersTable.balance] = newBalance
+        }
+        TransactionsTable.insert {
+            it[TransactionsTable.memberId] = memberId
+            it[TransactionsTable.amount] = amount
+            it[TransactionsTable.transactionType] = TransactionType.deposit
+            it[TransactionsTable.transactionDate] = LocalDateTime.now()
+            it[TransactionsTable.description] = "Пополнение"
+        }
+        MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
     }
 
     fun create(name: String, email: String, phone: String, passwordHash: String): MemberRow = transaction {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth, ApiError } from '../context/AuthContext'
 import { useTripleClick } from '../hooks/useTripleClick'
 import './HomePage.css'

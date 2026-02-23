@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth, ApiError } from '../context/AuthContext'
-import { get, patch, put } from '../api/client'
+import { get, patch, post, put } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
 import { useTripleClick } from '../hooks/useTripleClick'
 import './CabinetPage.css'
@@ -71,6 +71,10 @@ export default function CabinetPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const [depositModalOpen, setDepositModalOpen] = useState(false)
+  const [depositAmount, setDepositAmount] = useState('')
+  const [depositError, setDepositError] = useState<string | null>(null)
+  const [depositLoading, setDepositLoading] = useState(false)
   const onLogoTripleClick = useTripleClick(() => navigate('/cms'))
 
   useEffect(() => {
@@ -145,6 +149,47 @@ export default function CabinetPage() {
   const closePasswordModal = () => {
     setPasswordModalOpen(false)
     setPasswordError(null)
+  }
+
+  const openDepositModal = () => {
+    setDepositAmount('')
+    setDepositError(null)
+    setDepositModalOpen(true)
+  }
+
+  const closeDepositModal = () => {
+    setDepositModalOpen(false)
+    setDepositError(null)
+  }
+
+  const handleDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = depositAmount.trim()
+    if (!trimmed) {
+      setDepositError('Укажите сумму')
+      return
+    }
+    if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(trimmed)) {
+      setDepositError('Сумма должна быть положительным числом: только цифры 0–9 и точка, не более двух знаков после запятой')
+      return
+    }
+    const num = parseFloat(trimmed)
+    if (num < 0.01) {
+      setDepositError('Минимальная сумма пополнения — 0.01')
+      return
+    }
+    setDepositError(null)
+    setDepositLoading(true)
+    try {
+      const updated = await post<Me>('/api/me/balance/deposit', { amount: trimmed })
+      setMe(updated)
+      updateUser(updated)
+      closeDepositModal()
+    } catch (err) {
+      setDepositError(err instanceof ApiError ? err.message : 'Не удалось пополнить баланс')
+    } finally {
+      setDepositLoading(false)
+    }
   }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -238,6 +283,17 @@ export default function CabinetPage() {
           ) : null
         ) : me ? (
           <>
+            <section className="cabinet-balance-section">
+              <div className="cabinet-balance-row">
+                <div>
+                  <p className="cabinet-balance-label">Баланс</p>
+                  <p className="cabinet-balance-value">{me.balance} ₽</p>
+                </div>
+                <button type="button" className="cabinet-deposit-btn" onClick={openDepositModal}>
+                  Пополнить баланс
+                </button>
+              </div>
+            </section>
             <table className="cabinet-table">
               <caption className="cabinet-table-caption">Данные профиля</caption>
               <tbody>
@@ -252,10 +308,6 @@ export default function CabinetPage() {
                 <tr>
                   <th scope="row">Телефон</th>
                   <td>{me.phone}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Баланс</th>
-                  <td>{me.balance} ₽</td>
                 </tr>
                 <tr>
                   <th scope="row">Дата регистрации</th>
@@ -325,6 +377,42 @@ export default function CabinetPage() {
                 </button>
                 <button type="submit" className="cabinet-modal-submit" disabled={passwordLoading}>
                   {passwordLoading ? '...' : 'Сохранить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {depositModalOpen && (
+        <div
+          className="cabinet-modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && closeDepositModal()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cabinet-deposit-modal-title"
+        >
+          <div className="cabinet-modal">
+            <h2 id="cabinet-deposit-modal-title" className="cabinet-modal-title">Пополнить баланс</h2>
+            <form className="cabinet-modal-form" onSubmit={handleDepositSubmit}>
+              {depositError && <p className="cabinet-modal-error">{depositError}</p>}
+              <label className="cabinet-modal-label" htmlFor="deposit-amount">Сумма (₽)</label>
+              <input
+                id="deposit-amount"
+                type="text"
+                inputMode="decimal"
+                className="cabinet-modal-input"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="0.00"
+                autoComplete="off"
+              />
+              <div className="cabinet-modal-actions">
+                <button type="button" className="cabinet-modal-cancel" onClick={closeDepositModal}>
+                  Отмена
+                </button>
+                <button type="submit" className="cabinet-modal-submit cabinet-deposit-submit" disabled={depositLoading}>
+                  {depositLoading ? '...' : 'Пополнить'}
                 </button>
               </div>
             </form>

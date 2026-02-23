@@ -13,6 +13,7 @@ import io.ktor.server.routing.*
 import ru.itmo.cms.models.AuthResponse
 import ru.itmo.cms.models.LoginRequest
 import ru.itmo.cms.models.MemberResponse
+import ru.itmo.cms.models.DepositRequest
 import ru.itmo.cms.models.PatchMeRequest
 import ru.itmo.cms.models.PutPasswordRequest
 import ru.itmo.cms.models.RegisterRequest
@@ -184,6 +185,44 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
                 }
             }
+
+            post("/api/me/balance/deposit") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@post
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@post
+                }
+                try {
+                    val body = call.receive<DepositRequest>()
+                    val trimmed = body.amount.trim()
+                    if (trimmed.isEmpty()) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите сумму"))
+                        return@post
+                    }
+                    if (!Regex("^[0-9]+(\\.[0-9]{1,2})?$").matches(trimmed)) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Сумма должна быть положительным числом: только цифры 0–9 и точка, не более двух знаков после запятой"))
+                        return@post
+                    }
+                    val amount = trimmed.toBigDecimal()
+                    val minAmount = java.math.BigDecimal("0.01")
+                    if (amount < minAmount) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Минимальная сумма пополнения — 0.01"))
+                        return@post
+                    }
+                    val member = MemberRepository.deposit(memberId, amount)
+                        ?: run {
+                            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Участник не найден"))
+                            return@post
+                        }
+                    call.respond(member.toMemberResponse())
+                } catch (e: Exception) {
+                    call.application.log.error("POST /api/me/balance/deposit failed", e)
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Не удалось пополнить баланс")))
+                }
+            }
         }
     }
 }
@@ -212,6 +251,6 @@ private fun MemberRow.toMemberResponse() = MemberResponse(
     phone = phone,
     balance = balance.toDouble(),
     registeredAt = this.registeredAt.atZone(ZoneId.systemDefault()).format(
-        DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm z", Locale("ru"))
+        DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm z", Locale.of("ru"))
     )
 )

@@ -45,3 +45,8 @@ data class PutPasswordRequest(
     val currentPassword: String,
     val newPassword: String
 )
+
+@Serializable
+data class DepositRequest(
+    val amount: String
+)

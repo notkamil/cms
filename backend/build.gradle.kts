@@ -1,7 +1,7 @@
 plugins {
     application
-    kotlin("jvm") version "1.9.24"
-    kotlin("plugin.serialization") version "1.9.24"
+    kotlin("jvm") version "2.2.0"
+    kotlin("plugin.serialization") version "2.2.0"
 }
 
 group = "ru.itmo.cms"
@@ -15,9 +15,9 @@ repositories {
     mavenCentral()
 }
 
-val ktorVersion = "2.3.9"
+val ktorVersion = "2.3.13"
 
-val exposedVersion = "0.45.0"
+val exposedVersion = "1.0.0"
 
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")

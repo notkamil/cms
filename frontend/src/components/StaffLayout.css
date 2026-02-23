@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&display=swap');
+
+/* До логина — полный бренд (лого крупнее + подпись); после — только CMS/Staff и лого 2rem */
+.staff-header-brand {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.staff-header-brand .cabinet-logo-img {
+  width: 2rem;
+  height: 2rem;
+}
+
+.staff-header-brand--full .cabinet-logo-img {
+  width: 3rem;
+  height: 3rem;
+}
+
+.staff-header-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.staff-header-brand .cabinet-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--cabinet-text-muted);
+}
+
+.staff-header-logo {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cabinet-text);
+}
+
+.staff-brand-slash {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.15em;
+  font-style: italic;
+  color: #0a7d47;
+  margin-left: 0.05em;
+  letter-spacing: 0.03em;
+}
+
+/* Зелёная полоса по низу хедера — сразу видно, что это админка */
+.staff-layout .cabinet-header {
+  border-bottom: 4px solid #0a7d47;
+}
+
+/* Контент staff: те же отступы, что в cabinet (padding: 2rem) */
+.staff-layout .staff-main {
+  max-width: none;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}

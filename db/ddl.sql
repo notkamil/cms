@@ -13,6 +13,7 @@ CREATE TYPE booking_type        AS ENUM ('one_time', 'subscription');
 CREATE TYPE booking_status      AS ENUM ('confirmed', 'cancelled', 'completed');
 CREATE TYPE subscription_status AS ENUM ('active', 'expired', 'cancelled');
 CREATE TYPE transaction_type    AS ENUM ('deposit', 'payment', 'refund', 'bonus', 'withdrawal');
+CREATE TYPE staff_role          AS ENUM ('superadmin', 'admin', 'staff');
 
 -- ============================================================
 -- Tables
@@ -35,7 +36,8 @@ CREATE TABLE Staff (
     Name         VARCHAR(64)  NOT NULL,
     Email        VARCHAR(64)  NOT NULL UNIQUE,
     Phone        VARCHAR(20)  NOT NULL UNIQUE,
-    Role         VARCHAR(24)  NOT NULL,
+    Role         staff_role   NOT NULL,
+    Position     VARCHAR(128) NOT NULL DEFAULT '',
     PasswordHash VARCHAR(255) NOT NULL
 );
 

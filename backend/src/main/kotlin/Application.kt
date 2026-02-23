@@ -17,6 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import ru.itmo.cms.repository.MembersTable
 import ru.itmo.cms.routes.configureAuthRoutes
+import ru.itmo.cms.routes.configureStaffRoutes
 
 fun Application.module() {
     val dbConfig = environment.config.config("database")
@@ -38,13 +39,29 @@ fun Application.module() {
     Database.connect(dataSource)
 
     val jwtConfig = environment.config.config("jwt")
+    val jwtSecret = jwtConfig.property("secret").getString()
+    val jwtIssuer = jwtConfig.property("issuer").getString()
+    val jwtRealm = jwtConfig.property("realm").getString()
     install(Authentication) {
         jwt("jwt") {
-            realm = jwtConfig.property("realm").getString()
+            realm = jwtRealm
             verifier(
-                JWT.require(Algorithm.HMAC256(jwtConfig.property("secret").getString()))
+                JWT.require(Algorithm.HMAC256(jwtSecret))
                     .withAudience(jwtConfig.property("audience").getString())
-                    .withIssuer(jwtConfig.property("issuer").getString())
+                    .withIssuer(jwtIssuer)
+                    .build()
+            )
+            validate { credential ->
+                val subject = credential.payload.subject
+                if (subject != null) JWTPrincipal(credential.payload) else null
+            }
+        }
+        jwt("jwt-staff") {
+            realm = jwtRealm
+            verifier(
+                JWT.require(Algorithm.HMAC256(jwtSecret))
+                    .withAudience(jwtConfig.property("staffAudience").getString())
+                    .withIssuer(jwtIssuer)
                     .build()
             )
             validate { credential ->
@@ -70,6 +87,7 @@ fun Application.module() {
         allowMethod(HttpMethod.Put)
     }
     configureAuthRoutes()
+    configureStaffRoutes()
     routing {
         get("/") {
             call.respondText("Hello from CMS backend")

@@ -45,3 +45,11 @@ dependencies {
 kotlin {
     jvmToolchain(21)
 }
+
+// Хеш пароля для вставки в БД (staff/members): ./gradlew hashPassword -Ppassword=твой_пароль
+tasks.register<JavaExec>("hashPassword") {
+    group = "application"
+    mainClass.set("ru.itmo.cms.util.HashPasswordKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    args = listOf(project.findProperty("password")?.toString() ?: "changeme")
+}

@@ -1,0 +1,6 @@
+/* Как в /cabinet: контент сразу в main с padding 2rem и max-width 720px — таблица от левого края на 2rem, ширина 720px − 4rem */
+.staff-cabinet-content {
+  width: 100%;
+  max-width: calc(720px - 4rem);
+  margin-right: auto;
+}

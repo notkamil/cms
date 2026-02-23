@@ -1,0 +1,42 @@
+/* То же расстояние и центрирование, что на /: 3rem сверху, 1rem по бокам, карточка по центру viewport */
+.staff-login-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: calc(100% + 4rem);
+  margin: -2rem;
+  padding: 3rem 1rem;
+  box-sizing: border-box;
+}
+
+.staff-login {
+  width: 400px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--cabinet-border);
+  background: var(--cabinet-card-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.staff-login-title {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--cabinet-border);
+  color: var(--cabinet-text);
+}
+
+.staff-login-form {
+  padding: 1.25rem;
+}
+
+.staff-login-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.staff-login-error {
+  margin: 0 0 0.75rem;
+}

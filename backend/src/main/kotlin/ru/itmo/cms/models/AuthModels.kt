@@ -51,6 +51,24 @@ data class DepositRequest(
     val amount: String
 )
 
+/** Ответ с данными сотрудника (без пароля) */
+@Serializable
+data class StaffResponse(
+    val id: Int,
+    val name: String,
+    val email: String,
+    val phone: String,
+    val role: String,
+    val position: String
+)
+
+/** Ответ при логине в админку: токен + данные сотрудника */
+@Serializable
+data class StaffAuthResponse(
+    val token: String,
+    val staff: StaffResponse
+)
+
 /** Элемент истории транзакций: время, изменение баланса (положительное — приход, отрицательное — расход), комментарий */
 @Serializable
 data class TransactionResponse(

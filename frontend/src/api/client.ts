@@ -10,17 +10,22 @@ if (!baseUrl) {
 }
 
 const STORAGE_TOKEN_KEY = 'token'
+export const STORAGE_STAFF_TOKEN_KEY = 'staffToken'
 
 function getToken(): string | null {
   return localStorage.getItem(STORAGE_TOKEN_KEY)
 }
 
-function buildHeaders(includeBody = false): HeadersInit {
+function getStaffToken(): string | null {
+  return localStorage.getItem(STORAGE_STAFF_TOKEN_KEY)
+}
+
+function buildHeaders(includeBody = false, useStaffToken = false): HeadersInit {
   const headers: Record<string, string> = {}
   if (includeBody) {
     headers['Content-Type'] = 'application/json'
   }
-  const token = getToken()
+  const token = useStaffToken ? getStaffToken() : getToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
@@ -47,11 +52,11 @@ export class ApiError extends Error {
 /**
  * GET request. Throws ApiError on non-2xx response.
  */
-export async function get<T = unknown>(path: string): Promise<T> {
+export async function get<T = unknown>(path: string, useStaffToken = false): Promise<T> {
   const url = buildUrl(path)
   const res = await fetch(url, {
     method: 'GET',
-    headers: buildHeaders(false),
+    headers: buildHeaders(false, useStaffToken),
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -67,11 +72,11 @@ export async function get<T = unknown>(path: string): Promise<T> {
 /**
  * POST request with JSON body. Throws ApiError on non-2xx response.
  */
-export async function post<T = unknown>(path: string, body: object): Promise<T> {
+export async function post<T = unknown>(path: string, body: object, useStaffToken = false): Promise<T> {
   const url = buildUrl(path)
   const res = await fetch(url, {
     method: 'POST',
-    headers: buildHeaders(true),
+    headers: buildHeaders(true, useStaffToken),
     body: JSON.stringify(body),
   })
   const data = await res.json().catch(() => ({}))
@@ -127,5 +132,5 @@ export async function put<T = unknown>(path: string, body: object): Promise<T> {
   return data as T
 }
 
-export { getToken }
+export { getToken, getStaffToken }
 export { STORAGE_TOKEN_KEY }

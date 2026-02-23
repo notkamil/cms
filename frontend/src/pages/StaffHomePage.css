@@ -1,0 +1,42 @@
+/* То же расстояние и центрирование, что на /: 3rem сверху, 1rem по бокам, карточка по центру viewport */
+.staff-home-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: calc(100% + 4rem);
+  margin: -2rem;
+  padding: 3rem 1rem;
+  box-sizing: border-box;
+}
+
+.staff-auth-card {
+  width: 400px;
+  flex-shrink: 0;
+  padding: 1.5rem;
+  background: var(--cabinet-card-bg);
+  border: 1px solid var(--cabinet-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.staff-auth-card-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cabinet-text);
+}
+
+.staff-auth-card-name {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--cabinet-text);
+}
+
+.staff-auth-card-line {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+}
+
+.staff-auth-card-muted {
+  color: var(--cabinet-text-muted);
+}

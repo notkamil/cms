@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LoadingLogo } from '../components/LoadingLogo'
 import { useTripleClick } from '../hooks/useTripleClick'
-import './CabinetPage.css'
+import '../pages/CabinetPage.css'
 
 type Theme = 'light' | 'dark'
 const THEME_STORAGE_KEY = 'theme'
@@ -39,11 +38,18 @@ function MoonIcon({ size = 24 }: { size?: number }) {
   )
 }
 
-export default function CmsPage() {
+export default function CabinetLayout() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { token, logout } = useAuth()
   const [theme, setTheme] = useState<Theme>(readStoredTheme)
-  const onLogoTripleClick = useTripleClick(() => navigate('/'))
+  const onLogoTripleClick = useTripleClick(() => navigate('/cms'))
+
+  useEffect(() => {
+    if (!token) {
+      navigate('/', { replace: true })
+      return
+    }
+  }, [token, navigate])
 
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
@@ -58,23 +64,25 @@ export default function CmsPage() {
     })
   }
 
+  if (!token) {
+    return null
+  }
+
   return (
     <div className="cabinet" data-theme={theme}>
       <header className="cabinet-header">
         <div className="cabinet-header-left">
           <div className="cabinet-header-brand">
-            <div className="cabinet-logo-row cabinet-logo-row--clickable" onClick={onLogoTripleClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onLogoTripleClick(e as unknown as React.MouseEvent)} aria-label="Тройной клик — на главную">
+            <div className="cabinet-logo-row cabinet-logo-row--clickable" onClick={onLogoTripleClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onLogoTripleClick(e as unknown as React.MouseEvent)} aria-label="Тройной клик — загрузка">
               <img src={theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'} alt="" className="cabinet-logo-img" width={32} height={32} />
               <h1 className="cabinet-logo">CMS</h1>
             </div>
           </div>
-          {user && (
-            <nav className="cabinet-header-nav">
-              <NavLink to="/" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Главная</NavLink>
-              <NavLink to="/cabinet" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Личный кабинет</NavLink>
-              <NavLink to="/cabinet/subscriptions" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Подписки</NavLink>
-            </nav>
-          )}
+          <nav className="cabinet-header-nav">
+            <NavLink to="/" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Главная</NavLink>
+            <NavLink to="/cabinet" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Личный кабинет</NavLink>
+            <NavLink to="/cabinet/subscriptions" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Подписки</NavLink>
+          </nav>
         </div>
         <div className="cabinet-header-right">
           <button
@@ -86,16 +94,13 @@ export default function CmsPage() {
           >
             {theme === 'light' ? <MoonIcon size={22} /> : <SunIcon size={22} />}
           </button>
-          {user && (
-            <button type="button" className="cabinet-header-logout" onClick={logout}>
-              Выход
-            </button>
-          )}
+          <button type="button" className="cabinet-header-logout" onClick={logout}>
+            Выход
+          </button>
         </div>
       </header>
-
-      <main className="cabinet-main cabinet-main--centered">
-        <LoadingLogo theme={theme} size={192} variant="smooth" />
+      <main className="cabinet-main">
+        <Outlet context={{ theme }} />
       </main>
     </div>
   )

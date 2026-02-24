@@ -18,13 +18,24 @@ import ru.itmo.cms.models.PatchMeRequest
 import ru.itmo.cms.models.TransactionResponse
 import ru.itmo.cms.models.PutPasswordRequest
 import ru.itmo.cms.models.RegisterRequest
+import ru.itmo.cms.models.SubscriptionsListResponse
+import ru.itmo.cms.models.SubscriptionResponse
+import ru.itmo.cms.models.AvailableTariffResponse
+import ru.itmo.cms.models.CreateSubscriptionRequest
 import ru.itmo.cms.repository.MemberRepository
 import ru.itmo.cms.repository.MemberRow
 import ru.itmo.cms.repository.ProfileUpdateException
+import ru.itmo.cms.repository.SubscriptionRepository
+import ru.itmo.cms.repository.SubscriptionRow
+import ru.itmo.cms.repository.SubscriptionStatus
+import ru.itmo.cms.repository.TariffRepository
+import ru.itmo.cms.repository.TariffType
+import ru.itmo.cms.repository.markExpiredSubscriptions
 import ru.itmo.cms.repository.TransactionRow
 import ru.itmo.cms.repository.TransactionType
 import ru.itmo.cms.util.normalizeEmail
 import ru.itmo.cms.util.normalizePhone
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -240,6 +251,77 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Не удалось пополнить баланс")))
                 }
             }
+
+            get("/api/me/subscriptions") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@get
+                }
+                markExpiredSubscriptions()
+                val all = SubscriptionRepository.findByMemberId(memberId)
+                val current = all.filter { it.status == SubscriptionStatus.active }.map { it.toSubscriptionResponse() }
+                val archived = all.filter { it.status != SubscriptionStatus.active }.map { it.toSubscriptionResponse() }
+                call.respond(SubscriptionsListResponse(current = current, archived = archived))
+            }
+
+            get("/api/me/tariffs/available") {
+                val list = TariffRepository.findAll()
+                    .filter { it.isActive && (it.type == TariffType.fixed || it.type == TariffType.`package`) }
+                    .map { it.toAvailableTariffResponse() }
+                call.respond(list)
+            }
+
+            post("/api/me/subscriptions") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@post
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@post
+                }
+                val body = call.receive<CreateSubscriptionRequest>()
+                val tariff = TariffRepository.findById(body.tariffId)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тариф не найден"))
+                        return@post
+                    }
+                if (!tariff.isActive) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Тариф недоступен для оформления"))
+                    return@post
+                }
+                if (tariff.type == TariffType.hourly) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Почасовой тариф оформляется только при бронировании"))
+                    return@post
+                }
+                val startDate = body.startDate?.trim()?.let { raw ->
+                    try {
+                        LocalDate.parse(raw)
+                    } catch (_: Exception) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректная дата начала (ожидается YYYY-MM-DD)"))
+                        return@post
+                    }
+                } ?: LocalDate.now()
+                val endDate = startDate.plusDays(tariff.durationDays.toLong())
+                val subscription = SubscriptionRepository.createWithPayment(
+                    memberId = memberId,
+                    tariffId = body.tariffId,
+                    tariffName = tariff.name,
+                    price = tariff.price,
+                    startDate = startDate,
+                    endDate = endDate,
+                    remainingHours = tariff.includedHours
+                )
+                if (subscription == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Недостаточно средств на балансе"))
+                    return@post
+                }
+                call.respond(HttpStatusCode.Created, subscription.toSubscriptionResponse())
+            }
         }
     }
 }
@@ -270,6 +352,26 @@ private fun MemberRow.toMemberResponse() = MemberResponse(
     registeredAt = this.registeredAt.atZone(ZoneId.systemDefault()).format(
         DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm z", Locale.of("ru"))
     )
+)
+
+private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+
+private fun SubscriptionRow.toSubscriptionResponse() = SubscriptionResponse(
+    id = subscriptionId,
+    tariffName = tariffName,
+    startDate = startDate.format(dateFormatter),
+    endDate = endDate.format(dateFormatter),
+    remainingHours = remainingHours,
+    status = status.name
+)
+
+private fun ru.itmo.cms.repository.TariffRow.toAvailableTariffResponse() = AvailableTariffResponse(
+    id = tariffId,
+    name = name,
+    type = type.name,
+    durationDays = durationDays,
+    includedHours = includedHours,
+    price = price.toPlainString()
 )
 
 private fun TransactionRow.toTransactionResponse(): TransactionResponse {

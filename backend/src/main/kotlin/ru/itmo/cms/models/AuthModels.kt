@@ -77,6 +77,40 @@ data class TransactionResponse(
     val description: String
 )
 
+// ----- Member: Subscriptions -----
+
+@Serializable
+data class SubscriptionResponse(
+    val id: Int,
+    val tariffName: String,
+    val startDate: String,
+    val endDate: String,
+    val remainingHours: Int,
+    val status: String
+)
+
+@Serializable
+data class SubscriptionsListResponse(
+    val current: List<SubscriptionResponse>,
+    val archived: List<SubscriptionResponse>
+)
+
+@Serializable
+data class AvailableTariffResponse(
+    val id: Int,
+    val name: String,
+    val type: String,
+    val durationDays: Int,
+    val includedHours: Int,
+    val price: String
+)
+
+@Serializable
+data class CreateSubscriptionRequest(
+    val tariffId: Int,
+    val startDate: String? = null
+)
+
 // ----- Staff: Space Types -----
 
 @Serializable

@@ -197,10 +197,28 @@
 .cabinet-main {
   flex: 1;
   padding: 2rem;
-  max-width: 720px;
   margin: 0;
-  margin-right: auto;
   width: 100%;
+}
+
+/*
+ * Ширина контента кабинета (аналогично staff, без префикса staff):
+ * - cabinet-content — по умолчанию узко (720px − 4rem)
+ * - cabinet-content--wide — шире (960px − 4rem)
+ * - cabinet-content--wider — ещё шире (1200px − 4rem), для таблиц
+ */
+.cabinet-content {
+  width: 100%;
+  max-width: calc(720px - 4rem);
+  margin-right: auto;
+}
+
+.cabinet-content--wide {
+  max-width: calc(960px - 4rem);
+}
+
+.cabinet-content--wider {
+  max-width: calc(1200px - 4rem);
 }
 
 .cabinet-main--centered {
@@ -364,6 +382,31 @@
   color: var(--cabinet-text);
 }
 
+/* Таблица доступных тарифов: Тип, Длительность, Включ. часы — одинаковой ширины; Цена шире */
+.cabinet-tariffs-available-table {
+  table-layout: fixed;
+}
+.cabinet-tariffs-available-table thead th {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cabinet-tariffs-available-table th:nth-child(2),
+.cabinet-tariffs-available-table td:nth-child(2),
+.cabinet-tariffs-available-table th:nth-child(3),
+.cabinet-tariffs-available-table td:nth-child(3),
+.cabinet-tariffs-available-table th:nth-child(4),
+.cabinet-tariffs-available-table td:nth-child(4) {
+  width: 8rem;
+  box-sizing: border-box;
+}
+.cabinet-tariffs-available-table th:nth-child(5),
+.cabinet-tariffs-available-table td:nth-child(5),
+.cabinet-tariffs-available-table th:nth-child(6),
+.cabinet-tariffs-available-table td:nth-child(6) {
+  text-align: right;
+}
+
 .cabinet-amount-in {
   color: var(--cabinet-deposit-border);
   font-weight: 600;
@@ -506,4 +549,84 @@
   flex: 0 0 auto;
   padding: 0.4rem 0.75rem;
   font-size: 0.8125rem;
+}
+
+/* Модалка оформления подписки: таблица параметров и стоимость */
+.cabinet-modal--subscription {
+  max-width: 440px;
+}
+.cabinet-subscription-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin: 0;
+}
+.cabinet-subscription-modal-table th,
+.cabinet-subscription-modal-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--cabinet-border);
+  color: var(--cabinet-text);
+  vertical-align: middle;
+}
+.cabinet-subscription-modal-table th {
+  font-weight: 600;
+  width: 40%;
+  color: var(--cabinet-text-muted);
+}
+.cabinet-subscription-modal-table tr:last-child th,
+.cabinet-subscription-modal-table tr:last-child td {
+  border-bottom: none;
+}
+.cabinet-subscription-modal-table .cabinet-modal-input {
+  width: 100%;
+  min-width: 0;
+}
+.cabinet-modal--subscription .cabinet-modal-actions {
+  margin-top: 1rem;
+}
+
+/* Календарь в модалке: подстраиваем под тему кабинета */
+.cabinet-modal .react-datepicker-wrapper {
+  width: 100%;
+  display: block;
+}
+.cabinet-modal .react-datepicker__input-container input {
+  width: 100%;
+  min-width: 0;
+}
+.cabinet .react-datepicker {
+  font-family: inherit;
+  border: 1px solid var(--cabinet-border);
+  background: var(--cabinet-card-bg);
+}
+.cabinet .react-datepicker__header {
+  background: var(--cabinet-header-bg);
+  border-bottom-color: var(--cabinet-border);
+  color: var(--cabinet-text);
+}
+.cabinet .react-datepicker__current-month,
+.cabinet .react-datepicker__day-name {
+  color: var(--cabinet-text);
+}
+.cabinet .react-datepicker__day {
+  color: var(--cabinet-text);
+}
+.cabinet .react-datepicker__day:hover {
+  background: var(--cabinet-header-bg);
+  color: var(--cabinet-text);
+}
+.cabinet .react-datepicker__day--selected,
+.cabinet .react-datepicker__day--keyboard-selected {
+  background: var(--cabinet-edit-border);
+  color: #fff;
+}
+.cabinet .react-datepicker__day--disabled {
+  color: var(--cabinet-text-muted);
+}
+.cabinet .react-datepicker__navigation-icon::before {
+  border-color: var(--cabinet-text);
+}
+.cabinet .react-datepicker__day--outside-month {
+  color: var(--cabinet-text-muted);
 }

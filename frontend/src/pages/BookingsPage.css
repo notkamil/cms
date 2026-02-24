@@ -1,0 +1,277 @@
+/* Страница бронирований: шапка и выбор дня */
+.bookings-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.bookings-day {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bookings-day label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cabinet-text);
+}
+
+.bookings-day .cabinet-modal-input {
+  width: auto;
+}
+
+.bookings-summary {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cabinet-text-muted);
+}
+
+/* Модалка просмотра: дата и время */
+.bookings-view-datetime {
+  margin: 0 0 0.5rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  font-size: 0.875rem;
+}
+
+.bookings-view-datetime dt {
+  color: var(--cabinet-text-muted);
+  font-weight: 600;
+}
+
+.bookings-view-datetime dd {
+  margin: 0;
+}
+
+/* Таймлайн */
+.bookings-timeline-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--cabinet-border);
+  background: var(--cabinet-card-bg);
+}
+
+.bookings-time-row {
+  display: flex;
+  flex-shrink: 0;
+  min-width: calc(8rem + 2904px);
+  border-bottom: 1px solid var(--cabinet-border);
+}
+
+.bookings-time-corner {
+  flex: 0 0 8rem;
+  min-width: 8rem;
+  height: 2rem;
+  background: var(--cabinet-card-bg);
+  border-right: 1px solid var(--cabinet-border);
+}
+
+.bookings-time-axis {
+  position: relative;
+  height: 2rem;
+  flex-shrink: 0;
+  min-width: 2904px; /* TRACK_TOTAL_WIDTH: 2880 + 2*12 */
+}
+
+.bookings-time-axis .bookings-hour-line {
+  top: 0;
+  bottom: 0;
+}
+
+.bookings-time-tick {
+  position: absolute;
+  top: 0;
+  font-size: 0.75rem;
+  color: var(--cabinet-text-muted);
+  transform: translateX(-50%);
+}
+
+.bookings-rows {
+  display: flex;
+  flex-direction: column;
+  min-width: calc(8rem + 2904px); /* 8rem + TRACK_TOTAL_WIDTH */
+}
+
+.bookings-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 3rem;
+  border-bottom: 1px solid var(--cabinet-border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 0;
+}
+
+.bookings-row:last-child {
+  border-bottom: none;
+}
+
+.bookings-space-name {
+  flex: 0 0 8rem;
+  min-width: 8rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cabinet-text);
+  border-right: 1px solid var(--cabinet-border);
+  display: flex;
+  align-items: center;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: var(--cabinet-card-bg);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.bookings-track {
+  position: relative;
+  min-height: 2.5rem;
+  flex: 0 0 auto;
+  cursor: pointer;
+  background: var(--cabinet-bg);
+  z-index: 0;
+}
+
+.bookings-track:hover {
+  background: var(--cabinet-header-bg);
+}
+
+.booking-block {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  min-width: 4px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.booking-block--clickable {
+  cursor: pointer;
+}
+
+.booking-block--other {
+  cursor: default;
+}
+
+.booking-block--cancelled {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.booking-block-time {
+  padding: 0 4px;
+  text-shadow: 0 0 2px rgba(0,0,0,0.8);
+}
+
+.booking-block-time--vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  line-height: 1.2;
+}
+
+.booking-block-time--vertical .booking-block-time-sep {
+  font-size: 0.65em;
+  opacity: 0.9;
+}
+
+.bookings-hour-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--cabinet-border);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bookings-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #c62828;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Результаты поиска участников */
+.bookings-search-results {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 12rem;
+  overflow-y: auto;
+  border: 1px solid var(--cabinet-border);
+  background: var(--cabinet-input-bg);
+}
+
+.bookings-search-results li {
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--cabinet-border);
+}
+
+.bookings-search-results li:last-child {
+  border-bottom: none;
+}
+
+.bookings-search-results button {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.875rem;
+  border: none;
+  background: transparent;
+  color: var(--cabinet-text);
+  cursor: pointer;
+}
+
+.bookings-search-results button:hover {
+  background: var(--cabinet-header-bg);
+}
+
+/* Селекторы времени (24 ч, без AM/PM) */
+.bookings-time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bookings-time-inputs .cabinet-modal-input {
+  width: auto;
+  min-width: 4rem;
+}
+
+.bookings-time-sep {
+  font-weight: 600;
+  color: var(--cabinet-text);
+}
+
+.bookings-one-time-summary {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--cabinet-text);
+}
+
+.bookings-one-time-summary strong {
+  color: var(--cabinet-deposit-border);
+}
+
+/* Широкая модалка создания бронирования */
+.cabinet-modal--wide {
+  max-width: min(520px, calc(100vw - 2rem));
+}

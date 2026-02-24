@@ -124,6 +124,16 @@ object TariffRepository {
         TariffSpacesTable.selectAll().map { it[TariffSpacesTable.tariffId] to it[TariffSpacesTable.spaceId] }
     }
 
+    fun getSpaceIdsByTariffId(tariffId: Int): List<Int> = transaction {
+        TariffSpacesTable.selectAll().where { TariffSpacesTable.tariffId eq tariffId }
+            .map { it[TariffSpacesTable.spaceId] }
+    }
+
+    fun getTariffIdsBySpaceId(spaceId: Int): List<Int> = transaction {
+        TariffSpacesTable.selectAll().where { TariffSpacesTable.spaceId eq spaceId }
+            .map { it[TariffSpacesTable.tariffId] }
+    }
+
     fun setAssignments(pairs: List<Pair<Int, Int>>): Unit = transaction {
         val current = getAllAssignments().toSet()
         val newSet = pairs.toSet()

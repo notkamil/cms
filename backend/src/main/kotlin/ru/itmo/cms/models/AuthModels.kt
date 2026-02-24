@@ -85,7 +85,7 @@ data class SubscriptionResponse(
     val tariffName: String,
     val startDate: String,
     val endDate: String,
-    val remainingHours: Int,
+    val remainingMinutes: Int,
     val status: String
 )
 
@@ -109,6 +109,49 @@ data class AvailableTariffResponse(
 data class CreateSubscriptionRequest(
     val tariffId: Int,
     val startDate: String? = null
+)
+
+// ----- Bookings -----
+
+@Serializable
+data class SpaceForBookingsResponse(
+    val id: Int,
+    val name: String,
+    val floor: Int
+)
+
+@Serializable
+data class BookingTimelineResponse(
+    val id: Int,
+    val spaceId: Int,
+    val spaceName: String,
+    val startTime: String,
+    val endTime: String,
+    val createdBy: Int,
+    val creatorEmail: String? = null,
+    val participantEmails: List<String> = emptyList(),
+    val type: String,
+    val status: String,
+    val isCreator: Boolean,
+    val isParticipant: Boolean
+)
+
+@Serializable
+data class CreateBookingRequest(
+    val spaceId: Int,
+    val startTime: String,
+    val endTime: String,
+    val bookingType: String,
+    val subscriptionId: Int? = null,
+    val tariffId: Int? = null,
+    val participantMemberIds: List<Int> = emptyList()
+)
+
+@Serializable
+data class MemberSearchResponse(
+    val id: Int,
+    val name: String,
+    val email: String
 )
 
 // ----- Staff: Space Types -----
@@ -277,7 +320,7 @@ data class StaffSubscriptionResponse(
     val type: String,
     val startDate: String,
     val endDate: String,
-    val remainingHours: Int,
+    val remainingMinutes: Int,
     val status: String,
     val paymentAmount: Double? = null
 )

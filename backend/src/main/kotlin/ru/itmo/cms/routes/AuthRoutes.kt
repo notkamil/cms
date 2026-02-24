@@ -22,6 +22,10 @@ import ru.itmo.cms.models.SubscriptionsListResponse
 import ru.itmo.cms.models.SubscriptionResponse
 import ru.itmo.cms.models.AvailableTariffResponse
 import ru.itmo.cms.models.CreateSubscriptionRequest
+import ru.itmo.cms.models.SpaceForBookingsResponse
+import ru.itmo.cms.models.BookingTimelineResponse
+import ru.itmo.cms.models.CreateBookingRequest
+import ru.itmo.cms.models.MemberSearchResponse
 import ru.itmo.cms.repository.MemberRepository
 import ru.itmo.cms.repository.MemberRow
 import ru.itmo.cms.repository.ProfileUpdateException
@@ -33,9 +37,15 @@ import ru.itmo.cms.repository.TariffType
 import ru.itmo.cms.repository.markExpiredSubscriptions
 import ru.itmo.cms.repository.TransactionRow
 import ru.itmo.cms.repository.TransactionType
+import ru.itmo.cms.repository.BookingRepository
+import ru.itmo.cms.repository.BookingTimelineRow
+import ru.itmo.cms.repository.BookingType
+import ru.itmo.cms.repository.BookingStatus
+import ru.itmo.cms.repository.SpaceRepository
 import ru.itmo.cms.util.normalizeEmail
 import ru.itmo.cms.util.normalizePhone
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -261,8 +271,12 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
                     return@get
                 }
+                val spaceIdParam = call.request.queryParameters["spaceId"]?.toIntOrNull()
                 markExpiredSubscriptions()
-                val all = SubscriptionRepository.findByMemberId(memberId)
+                var all = SubscriptionRepository.findByMemberId(memberId)
+                if (spaceIdParam != null) {
+                    all = all.filter { TariffRepository.getSpaceIdsByTariffId(it.tariffId).contains(spaceIdParam) }
+                }
                 val current = all.filter { it.status == SubscriptionStatus.active }.map { it.toSubscriptionResponse() }
                 val archived = all.filter { it.status != SubscriptionStatus.active }.map { it.toSubscriptionResponse() }
                 call.respond(SubscriptionsListResponse(current = current, archived = archived))
@@ -273,6 +287,17 @@ fun Application.configureAuthRoutes() {
                     .filter { it.isActive && (it.type == TariffType.fixed || it.type == TariffType.`package`) }
                     .map { it.toAvailableTariffResponse() }
                 call.respond(list)
+            }
+
+            get("/api/me/tariffs/hourly") {
+                val spaceIdParam = call.request.queryParameters["spaceId"]?.toIntOrNull()
+                var list = TariffRepository.findAll()
+                    .filter { it.isActive && it.type == TariffType.hourly }
+                if (spaceIdParam != null) {
+                    val allowedTariffIds = TariffRepository.getTariffIdsBySpaceId(spaceIdParam).toSet()
+                    list = list.filter { it.tariffId in allowedTariffIds }
+                }
+                call.respond(list.map { it.toAvailableTariffResponse() })
             }
 
             post("/api/me/subscriptions") {
@@ -314,13 +339,152 @@ fun Application.configureAuthRoutes() {
                     price = tariff.price,
                     startDate = startDate,
                     endDate = endDate,
-                    remainingHours = tariff.includedHours
+                    remainingMinutes = if (tariff.includedHours == 0) 0 else tariff.includedHours * 60
                 )
                 if (subscription == null) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Недостаточно средств на балансе"))
                     return@post
                 }
                 call.respond(HttpStatusCode.Created, subscription.toSubscriptionResponse())
+            }
+
+            get("/api/me/spaces") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val list = SpaceRepository.findAll().map { SpaceForBookingsResponse(id = it.spaceId, name = it.name, floor = it.floor) }
+                call.respond(list)
+            }
+
+            get("/api/me/bookings") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@get
+                }
+                val dateStr = call.parameters["date"] ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите date (YYYY-MM-DD)"))
+                    return@get
+                }
+                val zone = ZoneId.of("Europe/Moscow")
+                val date = try {
+                    LocalDate.parse(dateStr)
+                } catch (_: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректная дата (ожидается YYYY-MM-DD)"))
+                    return@get
+                }
+                val from = date.atStartOfDay(zone).toLocalDateTime()
+                val to = date.plusDays(1).atStartOfDay(zone).toLocalDateTime()
+                val rows = BookingRepository.listForDateRange(from, to, memberId)
+                val list = rows.map { it.toBookingTimelineResponse(zone) }
+                call.respond(list)
+            }
+
+            post("/api/me/bookings") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@post
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@post
+                }
+                val zone = ZoneId.of("Europe/Moscow")
+                val body = call.receive<CreateBookingRequest>()
+                val bookingType = when (body.bookingType) {
+                    "subscription" -> BookingType.subscription
+                    "one_time" -> BookingType.one_time
+                    else -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "bookingType: subscription или one_time"))
+                        return@post
+                    }
+                }
+                val startTime = try {
+                    LocalDateTime.parse(body.startTime.take(19)).atZone(zone).toLocalDateTime()
+                } catch (_: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректное время начала (ожидается YYYY-MM-DDTHH:mm:ss)"))
+                    return@post
+                }
+                val endTime = try {
+                    LocalDateTime.parse(body.endTime.take(19)).atZone(zone).toLocalDateTime()
+                } catch (_: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректное время окончания"))
+                    return@post
+                }
+                if (bookingType == BookingType.one_time && body.tariffId != null) {
+                    val tariff = TariffRepository.findById(body.tariffId)
+                        ?: run {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Тариф не найден"))
+                            return@post
+                        }
+                    if (tariff.type != TariffType.hourly) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Указан не почасовой тариф"))
+                        return@post
+                    }
+                    val durationMinutes = java.time.Duration.between(startTime, endTime).toMinutes().toInt()
+                    val totalPrice = tariff.price
+                        .multiply(java.math.BigDecimal(durationMinutes))
+                        .divide(java.math.BigDecimal(60), 2, java.math.RoundingMode.HALF_UP)
+                    val member = MemberRepository.findById(memberId)
+                        ?: run {
+                            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Участник не найден"))
+                            return@post
+                        }
+                    if (member.balance < totalPrice) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Недостаточно средств на счёте"))
+                        return@post
+                    }
+                }
+                val id = BookingRepository.create(
+                    memberId = memberId,
+                    spaceId = body.spaceId,
+                    startTime = startTime,
+                    endTime = endTime,
+                    bookingType = bookingType,
+                    subscriptionId = body.subscriptionId,
+                    tariffId = body.tariffId,
+                    participantMemberIds = body.participantMemberIds
+                )
+                if (id == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Не удалось создать бронирование (пересечение, нехватка часов/средств или неверные параметры)"))
+                    return@post
+                }
+                call.respond(HttpStatusCode.Created, mapOf("id" to id))
+            }
+
+            post("/api/me/bookings/{id}/cancel") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@post
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@post
+                }
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@post
+                }
+                val ok = BookingRepository.cancel(id, memberId)
+                if (!ok) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Не удалось отменить бронирование"))
+                    return@post
+                }
+                call.respond(HttpStatusCode.NoContent)
+            }
+
+            get("/api/me/members/search") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val q = call.parameters["q"]?.trim() ?: ""
+                val list = MemberRepository.searchByEmailOrPhone(q).map { MemberSearchResponse(id = it.memberId, name = it.name, email = it.email) }
+                call.respond(list)
             }
         }
     }
@@ -361,7 +525,7 @@ private fun SubscriptionRow.toSubscriptionResponse() = SubscriptionResponse(
     tariffName = tariffName,
     startDate = startDate.format(dateFormatter),
     endDate = endDate.format(dateFormatter),
-    remainingHours = remainingHours,
+    remainingMinutes = remainingMinutes,
     status = status.name
 )
 
@@ -372,6 +536,21 @@ private fun ru.itmo.cms.repository.TariffRow.toAvailableTariffResponse() = Avail
     durationDays = durationDays,
     includedHours = includedHours,
     price = price.toPlainString()
+)
+
+private fun BookingTimelineRow.toBookingTimelineResponse(zone: ZoneId): BookingTimelineResponse = BookingTimelineResponse(
+    id = bookingId,
+    spaceId = spaceId,
+    spaceName = spaceName,
+    startTime = startTime.atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+    endTime = endTime.atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+    createdBy = createdBy,
+    creatorEmail = creatorEmail,
+    participantEmails = participantEmails,
+    type = bookingType.name,
+    status = status.name,
+    isCreator = isCreator,
+    isParticipant = isParticipant
 )
 
 private fun TransactionRow.toTransactionResponse(): TransactionResponse {

@@ -11,7 +11,7 @@ object SubscriptionsTable : Table("subscriptions") {
     val tariffId = integer("tariffid").references(TariffsTable.tariffId)
     val startDate = date("startdate")
     val endDate = date("enddate")
-    val remainingHours = integer("remaininghours").default(0)
+    val remainingMinutes = integer("remainingminutes").default(0)
     val status: Column<SubscriptionStatus> = customEnumeration(
         name = "status",
         sql = "subscription_status",

@@ -216,6 +216,18 @@ object MemberRepository {
             }
     }
 
+    /** Поиск участников по email или телефону (подстрока, без учёта регистра для email). Для выбора участников бронирования. */
+    fun searchByEmailOrPhone(query: String): List<MemberRow> = transaction {
+        val q = query.trim()
+        if (q.isEmpty()) return@transaction emptyList()
+        MembersTable.selectAll()
+            .filter {
+                it[MembersTable.email].lowercase().contains(q.lowercase()) ||
+                    it[MembersTable.phone].contains(q)
+            }
+            .map { it.toMemberRow() }
+    }
+
     fun create(name: String, email: String, phone: String, passwordHash: String): MemberRow = transaction {
         val now = LocalDateTime.now()
         val id = MembersTable.insert {

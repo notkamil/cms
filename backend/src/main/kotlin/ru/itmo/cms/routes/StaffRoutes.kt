@@ -654,7 +654,7 @@ private fun StaffSubscriptionRow.toStaffSubscriptionResponse() = StaffSubscripti
     type = tariffType.name,
     startDate = startDate.format(staffDateFormatter),
     endDate = endDate.format(staffDateFormatter),
-    remainingHours = remainingHours,
+    remainingMinutes = remainingMinutes,
     status = status.name,
     paymentAmount = paymentAmount?.toDouble()
 )

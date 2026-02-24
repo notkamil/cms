@@ -23,7 +23,7 @@ interface StaffSubscription {
   type: string
   startDate: string
   endDate: string
-  remainingHours: number
+  remainingMinutes: number
   status: string
   paymentAmount?: number | null
 }
@@ -34,8 +34,12 @@ function formatDate(iso: string): string {
   return d && m && y ? `${d}.${m}.${y}` : iso
 }
 
-function formatRemainingHours(hours: number): string {
-  return hours === 0 ? 'Безлимит' : String(hours)
+/** Остаток подписки: 0 → «Безлимит», иначе «Ч:ММ» */
+function formatRemainingMinutes(minutes: number): string {
+  if (minutes === 0) return 'Безлимит'
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${h}:${String(m).padStart(2, '0')}`
 }
 
 export default function StaffSubscriptionsPage() {
@@ -141,7 +145,7 @@ export default function StaffSubscriptionsPage() {
                 <td>{TARIFF_TYPE_LABELS[sub.type] ?? sub.type}</td>
                 <td>{formatDate(sub.startDate)}</td>
                 <td>{formatDate(sub.endDate)}</td>
-                <td>{formatRemainingHours(sub.remainingHours)}</td>
+                <td>{formatRemainingMinutes(sub.remainingMinutes)}</td>
                 <td>{STATUS_LABELS[sub.status] ?? sub.status}</td>
                 <td>
                   {sub.status === 'active' && (

@@ -91,10 +91,10 @@ CREATE TABLE Subscriptions (
     TariffId       INT                 NOT NULL REFERENCES Tariffs (TariffId),
     StartDate      DATE                NOT NULL,
     EndDate        DATE                NOT NULL,
-    RemainingHours INT                 NOT NULL DEFAULT 0,
-    Status         subscription_status NOT NULL DEFAULT 'active',
+    RemainingMinutes INT               NOT NULL DEFAULT 0,
+    Status           subscription_status NOT NULL DEFAULT 'active',
     CHECK (EndDate >= StartDate),
-    CHECK (RemainingHours >= 0)
+    CHECK (RemainingMinutes >= 0)
 );
 
 CREATE TABLE Bookings (

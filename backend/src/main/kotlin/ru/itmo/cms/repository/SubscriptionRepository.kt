@@ -20,7 +20,7 @@ data class SubscriptionRow(
     val tariffName: String,
     val startDate: LocalDate,
     val endDate: LocalDate,
-    val remainingHours: Int,
+    val remainingMinutes: Int,
     val status: SubscriptionStatus
 )
 
@@ -34,7 +34,7 @@ data class StaffSubscriptionRow(
     val tariffType: TariffType,
     val startDate: LocalDate,
     val endDate: LocalDate,
-    val remainingHours: Int,
+    val remainingMinutes: Int,
     val status: SubscriptionStatus,
     val paymentAmount: BigDecimal?
 )
@@ -71,7 +71,7 @@ object SubscriptionRepository {
                     tariffName = tariffName,
                     startDate = row[SubscriptionsTable.startDate],
                     endDate = row[SubscriptionsTable.endDate],
-                    remainingHours = row[SubscriptionsTable.remainingHours],
+                    remainingMinutes = row[SubscriptionsTable.remainingMinutes],
                     status = row[SubscriptionsTable.status]
                 )
             }
@@ -82,7 +82,7 @@ object SubscriptionRepository {
         tariffId: Int,
         startDate: LocalDate,
         endDate: LocalDate,
-        remainingHours: Int
+        remainingMinutes: Int
     ): SubscriptionRow = transaction {
         val tariff = TariffRepository.findById(tariffId) ?: error("Tariff not found")
         val id = SubscriptionsTable.insert {
@@ -90,7 +90,7 @@ object SubscriptionRepository {
             it[SubscriptionsTable.tariffId] = tariffId
             it[SubscriptionsTable.startDate] = startDate
             it[SubscriptionsTable.endDate] = endDate
-            it[SubscriptionsTable.remainingHours] = remainingHours
+            it[SubscriptionsTable.remainingMinutes] = remainingMinutes
             it[SubscriptionsTable.status] = SubscriptionStatus.active
         } get SubscriptionsTable.subscriptionId
         val row = SubscriptionsTable.selectAll()
@@ -103,7 +103,7 @@ object SubscriptionRepository {
             tariffName = tariff.name,
             startDate = row[SubscriptionsTable.startDate],
             endDate = row[SubscriptionsTable.endDate],
-            remainingHours = row[SubscriptionsTable.remainingHours],
+            remainingMinutes = row[SubscriptionsTable.remainingMinutes],
             status = row[SubscriptionsTable.status]
         )
     }
@@ -119,7 +119,7 @@ object SubscriptionRepository {
         price: BigDecimal,
         startDate: LocalDate,
         endDate: LocalDate,
-        remainingHours: Int
+        remainingMinutes: Int
     ): SubscriptionRow? = transaction {
         val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull() ?: return@transaction null
         val balance = memberRow[MembersTable.balance]
@@ -130,7 +130,7 @@ object SubscriptionRepository {
             it[SubscriptionsTable.tariffId] = tariffId
             it[SubscriptionsTable.startDate] = startDate
             it[SubscriptionsTable.endDate] = endDate
-            it[SubscriptionsTable.remainingHours] = remainingHours
+            it[SubscriptionsTable.remainingMinutes] = remainingMinutes
             it[SubscriptionsTable.status] = SubscriptionStatus.active
         } get SubscriptionsTable.subscriptionId
 
@@ -161,7 +161,7 @@ object SubscriptionRepository {
             tariffName = tariffName,
             startDate = startDate,
             endDate = endDate,
-            remainingHours = remainingHours,
+            remainingMinutes = remainingMinutes,
             status = SubscriptionStatus.active
         )
     }
@@ -201,7 +201,7 @@ object SubscriptionRepository {
                     tariffType = tariff?.type ?: TariffType.fixed,
                     startDate = row[SubscriptionsTable.startDate],
                     endDate = row[SubscriptionsTable.endDate],
-                    remainingHours = row[SubscriptionsTable.remainingHours],
+                    remainingMinutes = row[SubscriptionsTable.remainingMinutes],
                     status = row[SubscriptionsTable.status],
                     paymentAmount = paymentAmount
                 )

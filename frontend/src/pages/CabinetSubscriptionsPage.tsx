@@ -13,7 +13,7 @@ interface Subscription {
   tariffName: string
   startDate: string
   endDate: string
-  remainingHours: number
+  remainingMinutes: number
   status: string
 }
 
@@ -43,7 +43,15 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Отменена',
 }
 
-function formatRemainingHours(hours: number): string {
+/** Остаток подписки: 0 → «Безлимит», иначе «Ч:ММ» */
+function formatRemainingMinutes(minutes: number): string {
+  if (minutes === 0) return 'Безлимит'
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${h}:${String(m).padStart(2, '0')}`
+}
+
+function formatIncludedHours(hours: number): string {
   return hours === 0 ? 'Безлимит' : String(hours)
 }
 
@@ -169,7 +177,7 @@ export default function CabinetSubscriptionsPage() {
                 <td>{sub.tariffName}</td>
                 <td>{formatDate(sub.startDate)}</td>
                 <td>{formatDate(sub.endDate)}</td>
-                <td>{formatRemainingHours(sub.remainingHours)}</td>
+                <td>{formatRemainingMinutes(sub.remainingMinutes)}</td>
                 <td>{STATUS_LABELS[sub.status] ?? sub.status}</td>
               </tr>
             ))}
@@ -200,7 +208,7 @@ export default function CabinetSubscriptionsPage() {
                 <td>{sub.tariffName}</td>
                 <td>{formatDate(sub.startDate)}</td>
                 <td>{formatDate(sub.endDate)}</td>
-                <td>{formatRemainingHours(sub.remainingHours)}</td>
+                <td>{formatRemainingMinutes(sub.remainingMinutes)}</td>
                 <td>{STATUS_LABELS[sub.status] ?? sub.status}</td>
               </tr>
             ))}
@@ -235,7 +243,7 @@ export default function CabinetSubscriptionsPage() {
                 <td>{t.name}</td>
                 <td>{TARIFF_TYPE_LABELS[t.type] ?? t.type}</td>
                 <td>{t.durationDays}</td>
-                <td>{formatRemainingHours(t.includedHours)}</td>
+                <td>{formatIncludedHours(t.includedHours)}</td>
                 <td>{formatPrice(t.price)} ₽</td>
                 <td>
                   <button
@@ -271,7 +279,7 @@ export default function CabinetSubscriptionsPage() {
                   </tr>
                   <tr>
                     <th scope="row">Включенные часы</th>
-                    <td>{formatRemainingHours(selectedTariff.includedHours)}</td>
+                    <td>{formatIncludedHours(selectedTariff.includedHours)}</td>
                   </tr>
                   <tr>
                     <th scope="row">Дата начала</th>

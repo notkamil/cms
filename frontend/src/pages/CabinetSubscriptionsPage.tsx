@@ -266,7 +266,7 @@ export default function CabinetSubscriptionsPage() {
           <div className="cabinet-modal cabinet-modal--subscription" onClick={(e) => e.stopPropagation()}>
             <h3 className="cabinet-modal-title">Оформить подписку</h3>
             <div className="cabinet-modal-form">
-              {subscribeError && <p className="cabinet-modal-error">{subscribeError}</p>}
+              {subscribeError && <p className="cabinet-modal-error" role="alert">{subscribeError}</p>}
               <table className="cabinet-subscription-modal-table" aria-label="Параметры тарифа">
                 <tbody>
                   <tr>

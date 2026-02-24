@@ -4,6 +4,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -11,6 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /** Бронирование для таймлайна: с флагами isCreator/isParticipant для текущего пользователя. */
 data class BookingTimelineRow(
@@ -162,7 +164,9 @@ object BookingRepository {
                     it[OneOffsTable.tariffId] = tariffId
                     it[OneOffsTable.quantity] = durationMinutes
                 } get OneOffsTable.oneOffId
-                val desc = "Бронирование: ${tariff.name}, ${durationMinutes} мин"
+                val space = SpaceRepository.findById(spaceId) ?: return@transaction null
+                val dateTimeFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                val desc = "Бронирование «${space.name}» ${startTime.format(dateTimeFmt)} – ${endTime.format(dateTimeFmt)}"
                 val transId = TransactionsTable.insert {
                     it[TransactionsTable.memberId] = memberId
                     it[TransactionsTable.amount] = totalPrice
@@ -188,22 +192,71 @@ object BookingRepository {
         }
     }
 
-    /** Отменить бронирование: только создатель или участник, не началось, за 2 ч до начала (захардкожено). */
-    fun cancel(bookingId: Int, memberId: Int): Boolean = transaction {
-        val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction false
-        if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction false
+    /** Причина, по которой отмену нельзя выполнить; null — отмена возможна. */
+    fun cancelFailureReason(bookingId: Int, memberId: Int): String? = transaction {
+        val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
+            ?: return@transaction "Бронирование не найдено"
+        if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование уже отменено или завершено"
         val creatorId = row[BookingsTable.createdBy]
         val participantIds = BookingParticipantsTable.selectAll().where { BookingParticipantsTable.bookingId eq bookingId }
             .map { it[BookingParticipantsTable.memberId] }
-        if (memberId != creatorId && memberId !in participantIds) return@transaction false
+        if (memberId != creatorId && memberId !in participantIds) return@transaction "Нет прав на отмену этого бронирования"
         val startTime = row[BookingsTable.startTime]
         val now = LocalDateTime.now()
-        if (startTime <= now) return@transaction false
-        if (java.time.Duration.between(now, startTime).toMinutes() < 120) return@transaction false
+        if (startTime <= now) return@transaction "Бронирование уже началось или прошло"
+        if (java.time.Duration.between(now, startTime).toMinutes() < 120) return@transaction "Отменить можно не позднее чем за 2 часа до начала"
+        null
+    }
+
+    /** Выполнить отмену бронирования с возвратом (one_time) или возвратом минут (подписка-пакет). Вызывать после проверки через cancelFailureReason. */
+    fun cancelWithSideEffects(bookingId: Int, memberId: Int) = transaction {
+        val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+        val startTime = row[BookingsTable.startTime]
+        val endTime = row[BookingsTable.endTime]
+        val durationMinutes = java.time.Duration.between(startTime, endTime).toMinutes().toInt()
+        when (row[BookingsTable.bookingType]) {
+            BookingType.one_time -> {
+                val oneOffRow = OneOffsTable.selectAll().where { OneOffsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+                val oneOffId = oneOffRow[OneOffsTable.oneOffId]
+                val payMemberId = oneOffRow[OneOffsTable.memberId]
+                val toRefundRow = TransactionOneOffsTable.selectAll().where { TransactionOneOffsTable.oneOffId eq oneOffId }.singleOrNull() ?: return@transaction
+                val payTransId = toRefundRow[TransactionOneOffsTable.transactionId]
+                val payTrans = TransactionsTable.selectAll()
+                    .where { (TransactionsTable.transactionId eq payTransId) and (TransactionsTable.transactionType eq TransactionType.payment) }
+                    .singleOrNull() ?: return@transaction
+                val amount = payTrans[TransactionsTable.amount]
+                val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq payMemberId }.singleOrNull() ?: return@transaction
+                val newBalance = memberRow[MembersTable.balance] + amount
+                MembersTable.update(where = { MembersTable.memberId eq payMemberId }) {
+                    it[MembersTable.balance] = newBalance
+                }
+                val space = SpaceRepository.findById(row[BookingsTable.spaceId]) ?: return@transaction
+                val dateTimeFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                val desc = "Возврат по бронированию «${space.name}», ${startTime.format(dateTimeFmt)} – ${endTime.format(dateTimeFmt)}"
+                TransactionsTable.insert {
+                    it[TransactionsTable.memberId] = payMemberId
+                    it[TransactionsTable.amount] = amount
+                    it[TransactionsTable.transactionType] = TransactionType.refund
+                    it[TransactionsTable.transactionDate] = LocalDateTime.now()
+                    it[TransactionsTable.description] = desc
+                }
+            }
+            BookingType.subscription -> {
+                val bsRow = BookingSubscriptionsTable.selectAll().where { BookingSubscriptionsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+                val subscriptionId = bsRow[BookingSubscriptionsTable.subscriptionId]
+                val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction
+                val tariff = TariffRepository.findById(subRow[SubscriptionsTable.tariffId]) ?: return@transaction
+                if (tariff.type == TariffType.`package`) {
+                    val rem = subRow[SubscriptionsTable.remainingMinutes]
+                    SubscriptionsTable.update(where = { SubscriptionsTable.subscriptionId eq subscriptionId }) {
+                        it[SubscriptionsTable.remainingMinutes] = rem + durationMinutes
+                    }
+                }
+            }
+        }
         BookingsTable.update(where = { BookingsTable.bookingId eq bookingId }) {
             it[BookingsTable.status] = BookingStatus.cancelled
         }
-        true
     }
 
     fun findById(bookingId: Int): BookingTimelineRow? = transaction {
@@ -231,5 +284,36 @@ object BookingRepository {
             isCreator = false,
             isParticipant = false
         )
+    }
+
+    /** Все бронирования пользователя (создатель или участник): current = активные/ожидаемые, archive = прошедшие + отменённые. */
+    fun listMyBookings(memberId: Int): Pair<List<BookingTimelineRow>, List<BookingTimelineRow>> = transaction {
+        val now = LocalDateTime.now()
+        val all = listForDateRange(LocalDateTime.of(2000, 1, 1, 0, 0), LocalDateTime.of(2100, 1, 1, 0, 0), memberId)
+            .filter { it.isCreator || it.isParticipant }
+        val current = all.filter { it.status == BookingStatus.confirmed && it.endTime > now }
+        val archive = all.filter { it.status != BookingStatus.confirmed || it.endTime <= now }
+        Pair(current.sortedBy { it.startTime }, archive.sortedByDescending { it.startTime })
+    }
+
+    /** Обновить участников бронирования (только создатель, только подтверждённое, ещё не началось). */
+    fun updateParticipantsFailureReason(bookingId: Int, memberId: Int): String? = transaction {
+        val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
+            ?: return@transaction "Бронирование не найдено"
+        if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование отменено или завершено"
+        if (row[BookingsTable.createdBy] != memberId) return@transaction "Только владелец может менять участников"
+        val startTime = row[BookingsTable.startTime]
+        if (startTime <= LocalDateTime.now()) return@transaction "Бронирование уже началось"
+        null
+    }
+
+    fun updateParticipants(bookingId: Int, participantMemberIds: List<Int>, creatorId: Int) = transaction {
+        BookingParticipantsTable.deleteWhere { BookingParticipantsTable.bookingId eq bookingId }
+        participantMemberIds.distinct().filter { it != creatorId }.forEach { pid ->
+            BookingParticipantsTable.insert {
+                it[BookingParticipantsTable.bookingId] = bookingId
+                it[BookingParticipantsTable.memberId] = pid
+            }
+        }
     }
 }

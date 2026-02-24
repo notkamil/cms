@@ -26,6 +26,8 @@ import ru.itmo.cms.models.SpaceForBookingsResponse
 import ru.itmo.cms.models.BookingTimelineResponse
 import ru.itmo.cms.models.CreateBookingRequest
 import ru.itmo.cms.models.MemberSearchResponse
+import ru.itmo.cms.models.MyBookingsListResponse
+import ru.itmo.cms.models.UpdateBookingParticipantsRequest
 import ru.itmo.cms.repository.MemberRepository
 import ru.itmo.cms.repository.MemberRow
 import ru.itmo.cms.repository.ProfileUpdateException
@@ -384,6 +386,23 @@ fun Application.configureAuthRoutes() {
                 call.respond(list)
             }
 
+            get("/api/me/bookings/list") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@get
+                }
+                val zone = ZoneId.of("Europe/Moscow")
+                val (current, archive) = BookingRepository.listMyBookings(memberId)
+                call.respond(MyBookingsListResponse(
+                    current = current.map { it.toBookingTimelineResponse(zone) },
+                    archive = archive.map { it.toBookingTimelineResponse(zone) }
+                ))
+            }
+
             post("/api/me/bookings") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
                     call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
@@ -469,11 +488,35 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                     return@post
                 }
-                val ok = BookingRepository.cancel(id, memberId)
-                if (!ok) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Не удалось отменить бронирование"))
+                val failureReason = BookingRepository.cancelFailureReason(id, memberId)
+                if (failureReason != null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to failureReason))
                     return@post
                 }
+                BookingRepository.cancelWithSideEffects(id, memberId)
+                call.respond(HttpStatusCode.NoContent)
+            }
+
+            patch("/api/me/bookings/{id}") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@patch
+                }
+                val memberId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@patch
+                }
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@patch
+                }
+                val failureReason = BookingRepository.updateParticipantsFailureReason(id, memberId)
+                if (failureReason != null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to failureReason))
+                    return@patch
+                }
+                val body = call.receive<UpdateBookingParticipantsRequest>()
+                BookingRepository.updateParticipants(id, body.participantMemberIds, memberId)
                 call.respond(HttpStatusCode.NoContent)
             }
 
@@ -546,6 +589,7 @@ private fun BookingTimelineRow.toBookingTimelineResponse(zone: ZoneId): BookingT
     endTime = endTime.atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
     createdBy = createdBy,
     creatorEmail = creatorEmail,
+    participantMemberIds = participantMemberIds,
     participantEmails = participantEmails,
     type = bookingType.name,
     status = status.name,

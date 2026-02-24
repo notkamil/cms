@@ -204,7 +204,7 @@ export default function StaffSubscriptionsPage() {
                   )}
                 </>
               )}
-              {cancelError && <p className="cabinet-modal-error">{cancelError}</p>}
+              {cancelError && <p className="cabinet-modal-error" role="alert">{cancelError}</p>}
               <div className="cabinet-modal-actions">
                 <button type="button" className="cabinet-modal-cancel" onClick={closeCancel}>
                   Отмена

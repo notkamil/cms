@@ -221,6 +221,37 @@
   max-width: calc(1200px - 4rem);
 }
 
+.cabinet-section {
+  margin-bottom: 2rem;
+}
+
+.cabinet-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--cabinet-text);
+}
+
+.cabinet-muted {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cabinet-text-muted);
+}
+
+.cabinet-table-btn {
+  margin-right: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--cabinet-edit-border);
+  background: var(--cabinet-edit-bg);
+  color: var(--cabinet-text);
+  cursor: pointer;
+}
+
+.cabinet-table-btn:hover {
+  opacity: 0.9;
+}
+
 .cabinet-main--centered {
   max-width: none;
   display: flex;

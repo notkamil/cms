@@ -351,7 +351,7 @@ export default function StaffAmenitiesPage() {
           <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="cabinet-modal-title">Добавить удобство</h3>
             <form className="cabinet-modal-form" onSubmit={submitAdd}>
-              {addError && <p className="cabinet-modal-error">{addError}</p>}
+              {addError && <p className="cabinet-modal-error" role="alert">{addError}</p>}
               <div className="cabinet-modal-field">
                 <label className="cabinet-modal-label" htmlFor="add-name">Название *</label>
                 <input
@@ -393,7 +393,7 @@ export default function StaffAmenitiesPage() {
           <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="cabinet-modal-title">Изменить удобство</h3>
             <form className="cabinet-modal-form" onSubmit={submitEdit}>
-              {editError && <p className="cabinet-modal-error">{editError}</p>}
+              {editError && <p className="cabinet-modal-error" role="alert">{editError}</p>}
               <div className="cabinet-modal-field">
                 <label className="cabinet-modal-label" htmlFor="edit-name">Название *</label>
                 <input
@@ -437,7 +437,7 @@ export default function StaffAmenitiesPage() {
               {deleteSpaces.length > 0 ? 'Удаление невозможно' : 'Удалить удобство?'}
             </h3>
             <div className="cabinet-modal-form">
-              {deleteError && <p className="cabinet-modal-error">{deleteError}</p>}
+              {deleteError && <p className="cabinet-modal-error" role="alert">{deleteError}</p>}
               {deleteSpaces.length > 0 ? (
                 <div className="staff-conflict-block">
                   <p>Следующие пространства используют это удобство:</p>

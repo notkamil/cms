@@ -129,6 +129,7 @@ data class BookingTimelineResponse(
     val endTime: String,
     val createdBy: Int,
     val creatorEmail: String? = null,
+    val participantMemberIds: List<Int> = emptyList(),
     val participantEmails: List<String> = emptyList(),
     val type: String,
     val status: String,
@@ -144,6 +145,17 @@ data class CreateBookingRequest(
     val bookingType: String,
     val subscriptionId: Int? = null,
     val tariffId: Int? = null,
+    val participantMemberIds: List<Int> = emptyList()
+)
+
+@Serializable
+data class MyBookingsListResponse(
+    val current: List<BookingTimelineResponse>,
+    val archive: List<BookingTimelineResponse>
+)
+
+@Serializable
+data class UpdateBookingParticipantsRequest(
     val participantMemberIds: List<Int> = emptyList()
 )
 

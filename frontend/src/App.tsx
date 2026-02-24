@@ -16,6 +16,7 @@ import StaffAmenitiesPage from './pages/StaffAmenitiesPage'
 import StaffTariffsPage from './pages/StaffTariffsPage'
 import StaffSubscriptionsPage from './pages/StaffSubscriptionsPage'
 import BookingsPage from './pages/BookingsPage'
+import MyBookingsPage from './pages/MyBookingsPage'
 import './App.css'
 
 function StaffGate() {
@@ -39,6 +40,9 @@ function App() {
             </Route>
             <Route path="/bookings" element={<CabinetLayout />}>
               <Route index element={<BookingsPage />} />
+            </Route>
+            <Route path="/bookings/list" element={<CabinetLayout />}>
+              <Route index element={<MyBookingsPage />} />
             </Route>
             <Route path="/cms" element={<CmsPage />} />
             <Route path="/staff" element={<StaffLayout />}>

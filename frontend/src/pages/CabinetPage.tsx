@@ -311,7 +311,7 @@ export default function CabinetPage() {
           <div className="cabinet-modal">
             <h2 id="cabinet-password-modal-title" className="cabinet-modal-title">Изменить пароль</h2>
             <form className="cabinet-modal-form" onSubmit={handlePasswordSubmit}>
-              {passwordError && <p className="cabinet-modal-error">{passwordError}</p>}
+              {passwordError && <p className="cabinet-modal-error" role="alert">{passwordError}</p>}
               <label className="cabinet-modal-label" htmlFor="password-current">Текущий пароль</label>
               <input
                 id="password-current"
@@ -366,7 +366,7 @@ export default function CabinetPage() {
           <div className="cabinet-modal">
             <h2 id="cabinet-deposit-modal-title" className="cabinet-modal-title">Пополнить баланс</h2>
             <form className="cabinet-modal-form" onSubmit={handleDepositSubmit}>
-              {depositError && <p className="cabinet-modal-error">{depositError}</p>}
+              {depositError && <p className="cabinet-modal-error" role="alert">{depositError}</p>}
               <label className="cabinet-modal-label" htmlFor="deposit-amount">Сумма (₽)</label>
               <input
                 id="deposit-amount"
@@ -402,7 +402,7 @@ export default function CabinetPage() {
           <div className="cabinet-modal">
             <h2 id="cabinet-modal-title" className="cabinet-modal-title">Изменить данные</h2>
             <form className="cabinet-modal-form" onSubmit={handleEditSubmit}>
-              {editError && <p className="cabinet-modal-error">{editError}</p>}
+              {editError && <p className="cabinet-modal-error" role="alert">{editError}</p>}
               <label className="cabinet-modal-label" htmlFor="edit-name">Имя</label>
               <input
                 id="edit-name"

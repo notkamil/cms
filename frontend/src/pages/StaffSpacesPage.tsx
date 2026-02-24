@@ -306,7 +306,7 @@ export default function StaffSpacesPage() {
           <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="cabinet-modal-title">Добавить пространство</h3>
             <form className="cabinet-modal-form" onSubmit={submitAdd}>
-              {addError && <p className="cabinet-modal-error">{addError}</p>}
+              {addError && <p className="cabinet-modal-error" role="alert">{addError}</p>}
               <div className="cabinet-modal-field">
                 <label className="cabinet-modal-label" htmlFor="add-name">
                   Название *
@@ -412,7 +412,7 @@ export default function StaffSpacesPage() {
           <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="cabinet-modal-title">Изменить пространство</h3>
             <form className="cabinet-modal-form" onSubmit={submitEdit}>
-              {editError && <p className="cabinet-modal-error">{editError}</p>}
+              {editError && <p className="cabinet-modal-error" role="alert">{editError}</p>}
               <div className="cabinet-modal-field">
                 <label className="cabinet-modal-label" htmlFor="edit-name">
                   Название *
@@ -518,7 +518,7 @@ export default function StaffSpacesPage() {
           <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="cabinet-modal-title">Удалить пространство?</h3>
             <div className="cabinet-modal-form">
-              {deleteError && <p className="cabinet-modal-error">{deleteError}</p>}
+              {deleteError && <p className="cabinet-modal-error" role="alert">{deleteError}</p>}
               <p>Вы уверены, что хотите удалить это пространство? Действие нельзя отменить</p>
               <div className="cabinet-modal-actions">
                 <button type="button" className="cabinet-modal-cancel" onClick={closeModal}>

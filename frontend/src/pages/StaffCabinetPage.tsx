@@ -61,7 +61,7 @@ export default function StaffCabinetPage() {
         >
           <div className="cabinet-modal">
             <h2 id="staff-edit-modal-title" className="cabinet-modal-title">Изменить данные</h2>
-            <p className="cabinet-modal-error" style={{ margin: '1rem' }}>
+            <p className="cabinet-modal-error" role="alert" style={{ margin: '1rem' }}>
               Функция в разработке. Будет доступна после добавления API на бэкенде.
             </p>
             <div className="cabinet-modal-actions" style={{ justifyContent: 'flex-end', margin: '1rem' }}>
@@ -83,7 +83,7 @@ export default function StaffCabinetPage() {
         >
           <div className="cabinet-modal">
             <h2 id="staff-password-modal-title" className="cabinet-modal-title">Изменить пароль</h2>
-            <p className="cabinet-modal-error" style={{ margin: '1rem' }}>
+            <p className="cabinet-modal-error" role="alert" style={{ margin: '1rem' }}>
               Функция в разработке. Будет доступна после добавления API на бэкенде.
             </p>
             <div className="cabinet-modal-actions" style={{ justifyContent: 'flex-end', margin: '1rem' }}>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, patch, del, put, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
+import { formatPrice } from '../utils/formatPrice'
 import '../pages/CabinetPage.css'
 import '../pages/StaffCabinetPage.css'
 
@@ -363,7 +364,7 @@ export default function StaffTariffsPage() {
                   <td>{TARIFF_TYPE_LABELS[row.type] ?? row.type}</td>
                   <td>{row.type === 'hourly' ? '—' : row.durationDays}</td>
                   <td>{formatIncludedHours(row.includedHours)}</td>
-                  <td>{row.price}</td>
+                  <td>{formatPrice(row.price)}</td>
                   <td>{row.isActive ? 'Да' : 'Нет'}</td>
                   <td>
                     <div className="cabinet-table-actions-cell">

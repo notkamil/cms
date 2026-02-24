@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth, ApiError } from '../context/AuthContext'
 import { get, patch, post, put } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
+import { formatAmount } from '../utils/formatPrice'
 import './CabinetPage.css'
 
 /** Backend MemberResponse */
@@ -260,7 +261,7 @@ export default function CabinetPage() {
               <div className="cabinet-balance-row">
                 <div>
                   <p className="cabinet-balance-label">Баланс</p>
-                  <p className="cabinet-balance-value">{me.balance} ₽</p>
+                  <p className="cabinet-balance-value">{formatAmount(me.balance)} ₽</p>
                 </div>
                 <button type="button" className="cabinet-deposit-btn" onClick={openDepositModal}>
                   Пополнить баланс
@@ -286,7 +287,7 @@ export default function CabinetPage() {
                       <tr key={i}>
                         <td>{tx.transactionDate}</td>
                         <td className={tx.amountChange >= 0 ? 'cabinet-amount-in' : 'cabinet-amount-out'}>
-                          {tx.amountChange >= 0 ? '+' : ''}{tx.amountChange.toFixed(2)} ₽
+                          {tx.amountChange >= 0 ? '+' : ''}{formatAmount(tx.amountChange)} ₽
                         </td>
                         <td>{tx.description}</td>
                       </tr>

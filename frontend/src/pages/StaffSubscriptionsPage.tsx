@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { get, post, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
+import { formatAmount } from '../utils/formatPrice'
 import '../pages/CabinetPage.css'
 import '../pages/StaffCabinetPage.css'
 
@@ -103,7 +104,7 @@ export default function StaffSubscriptionsPage() {
         }
         const maxRefund = cancelTarget.paymentAmount ?? 0
         if (num > maxRefund) {
-          setCancelError(`Сумма возврата не может превышать сумму оплаты (${maxRefund} ₽)`)
+          setCancelError(`Сумма возврата не может превышать сумму оплаты (${formatAmount(maxRefund)} ₽)`)
           setCancelLoading(false)
           return
         }
@@ -199,7 +200,7 @@ export default function StaffSubscriptionsPage() {
                   {refundChecked && (
                     <div className="cabinet-modal-field">
                       <label className="cabinet-modal-label" htmlFor="staff-refund-amount">
-                        Сумма возврата (₽), от 0 до {cancelTarget.paymentAmount}
+                        Сумма возврата (₽), от 0 до {formatAmount(cancelTarget.paymentAmount)}
                       </label>
                       <input
                         id="staff-refund-amount"

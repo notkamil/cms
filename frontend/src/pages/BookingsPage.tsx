@@ -3,6 +3,7 @@ import DatePicker, { registerLocale } from 'react-datepicker'
 import ru from 'date-fns/locale/ru'
 import { get, post, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
+import { formatPrice, formatAmount } from '../utils/formatPrice'
 import 'react-datepicker/dist/react-datepicker.css'
 import './CabinetPage.css'
 import './BookingsPage.css'
@@ -706,13 +707,13 @@ export default function BookingsPage() {
                       className="cabinet-modal-input"
                     >
                       {hourlyTariffs.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name} — {t.price} ₽/ч</option>
+                        <option key={t.id} value={t.id}>{t.name} — {formatPrice(t.price)} ₽/ч</option>
                       ))}
                     </select>
                   </div>
                   {createOneTimeAmount != null && createOneTimeAmount.amount >= 0 && (
                     <p className="bookings-one-time-summary">
-                      Сумма к оплате: <strong>{createOneTimeAmount.amount.toFixed(2)} ₽</strong>
+                      Сумма к оплате: <strong>{formatAmount(createOneTimeAmount.amount)} ₽</strong>
                       {' '}({createOneTimeAmount.durationMinutes} мин)
                     </p>
                   )}

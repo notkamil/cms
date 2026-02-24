@@ -3,6 +3,7 @@ import DatePicker, { registerLocale } from 'react-datepicker'
 import ru from 'date-fns/locale/ru'
 import { get, post, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
+import { formatPrice } from '../utils/formatPrice'
 import 'react-datepicker/dist/react-datepicker.css'
 import './CabinetPage.css'
 
@@ -70,12 +71,6 @@ function addDays(iso: string, days: number): string {
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
-}
-
-/** Цена: без копеек, если они нулевые (100.00 → 100, 99.50 → 99.50) */
-function formatPrice(price: string): string {
-  if (/\.00$/.test(price)) return price.replace(/\.00$/, '')
-  return price
 }
 
 export default function CabinetSubscriptionsPage() {

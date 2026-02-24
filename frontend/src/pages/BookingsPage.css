@@ -52,6 +52,37 @@
   overflow-x: auto;
   border: 1px solid var(--cabinet-border);
   background: var(--cabinet-card-bg);
+  scrollbar-width: thin;
+}
+/* Ползунок: светлая тема — светлый трек, тёмный ползунок; тёмная тема — наоборот */
+.cabinet:not([data-theme="dark"]) .bookings-timeline-wrap {
+  scrollbar-color: #888 #ddd;
+}
+.cabinet[data-theme="dark"] .bookings-timeline-wrap {
+  scrollbar-color: #666 #3a3a3a;
+}
+.bookings-timeline-wrap::-webkit-scrollbar {
+  height: 12px;
+}
+.cabinet:not([data-theme="dark"]) .bookings-timeline-wrap::-webkit-scrollbar-track {
+  background: #ddd;
+}
+.cabinet:not([data-theme="dark"]) .bookings-timeline-wrap::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 6px;
+}
+.cabinet:not([data-theme="dark"]) .bookings-timeline-wrap::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+.cabinet[data-theme="dark"] .bookings-timeline-wrap::-webkit-scrollbar-track {
+  background: #3a3a3a;
+}
+.cabinet[data-theme="dark"] .bookings-timeline-wrap::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 6px;
+}
+.cabinet[data-theme="dark"] .bookings-timeline-wrap::-webkit-scrollbar-thumb:hover {
+  background: #888;
 }
 
 .bookings-time-row {

@@ -181,3 +181,54 @@ data class SpaceAmenityAssignment(
 data class PutSpaceAmenitiesRequest(
     val assignments: List<SpaceAmenityAssignment>
 )
+
+// ----- Staff: Tariffs -----
+
+@Serializable
+data class TariffResponse(
+    val id: Int,
+    val name: String,
+    val type: String,
+    val durationDays: Int,
+    val includedHours: Int,
+    val price: String,
+    val isActive: Boolean,
+    val activeSubscriptionCount: Int,
+    val subscriptionCount: Int
+)
+
+@Serializable
+data class CreateTariffRequest(
+    val name: String,
+    val type: String,
+    val durationDays: Int = 0,
+    val includedHours: Int = 0,
+    val price: String,
+    val isActive: Boolean = true
+)
+
+@Serializable
+data class UpdateTariffRequest(
+    val name: String? = null,
+    val durationDays: Int? = null,
+    val includedHours: Int? = null,
+    val price: String? = null,
+    val isActive: Boolean? = null
+)
+
+@Serializable
+data class DeleteTariffConflictResponse(
+    val error: String,
+    val subscriptionCount: Int
+)
+
+@Serializable
+data class TariffSpaceAssignment(
+    val tariffId: Int,
+    val spaceId: Int
+)
+
+@Serializable
+data class PutTariffSpacesRequest(
+    val assignments: List<TariffSpaceAssignment>
+)

@@ -8,7 +8,9 @@
 -- ============================================================
 
 CREATE TYPE space_status        AS ENUM ('available', 'occupied', 'maintenance');
-CREATE TYPE tariff_type         AS ENUM ('monthly', 'hourly', 'package');
+-- tariff_type: fixed (фикс, одно место), hourly (почасовой), package (пакет, пул пространств)
+-- Если в БД уже был 'monthly', выполните: ALTER TYPE tariff_type RENAME VALUE 'monthly' TO 'fixed';
+CREATE TYPE tariff_type         AS ENUM ('fixed', 'hourly', 'package');
 CREATE TYPE booking_type        AS ENUM ('one_time', 'subscription');
 CREATE TYPE booking_status      AS ENUM ('confirmed', 'cancelled', 'completed');
 CREATE TYPE subscription_status AS ENUM ('active', 'expired', 'cancelled');

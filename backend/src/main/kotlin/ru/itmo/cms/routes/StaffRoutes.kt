@@ -19,6 +19,10 @@ import ru.itmo.cms.repository.SpaceTypeRepository
 import ru.itmo.cms.repository.SpaceTypeRow
 import ru.itmo.cms.repository.StaffRepository
 import ru.itmo.cms.repository.StaffRow
+import ru.itmo.cms.repository.TariffRepository
+import ru.itmo.cms.repository.TariffRow
+import ru.itmo.cms.repository.TariffType
+import java.math.BigDecimal
 import java.util.*
 
 fun Application.configureStaffRoutes() {
@@ -383,6 +387,176 @@ fun Application.configureStaffRoutes() {
                 AmenityRepository.setAssignments(pairs)
                 call.respond(HttpStatusCode.NoContent)
             }
+
+            // ----- Tariffs -----
+            get("/api/staff/tariffs") {
+                val list = TariffRepository.findAll().map { it.toTariffResponse() }
+                call.respond(list)
+            }
+            post("/api/staff/tariffs") {
+                val body = call.receive<CreateTariffRequest>()
+                val name = body.name.trim()
+                if (name.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название обязательно"))
+                    return@post
+                }
+                if (TariffRepository.findByName(name) != null) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Тариф с таким названием уже существует"))
+                    return@post
+                }
+                val type = when (body.type.trim().lowercase()) {
+                    "fixed" -> TariffType.fixed
+                    "hourly" -> TariffType.hourly
+                    "package" -> TariffType.`package`
+                    else -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Тип тарифа: fixed, hourly или package"))
+                        return@post
+                    }
+                }
+                val priceStr = body.price.trim()
+                val price = priceStr.toBigDecimalOrNull()
+                    ?: run {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректная цена"))
+                        return@post
+                    }
+                if (price < BigDecimal.ZERO) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Цена не может быть отрицательной"))
+                    return@post
+                }
+                if (price.stripTrailingZeros().scale() > 2) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Цена: не более двух знаков после запятой"))
+                    return@post
+                }
+                val durationDays = when (type) {
+                    TariffType.hourly -> 0
+                    else -> body.durationDays.coerceAtLeast(0)
+                }
+                val includedHours = when (type) {
+                    TariffType.hourly -> 1
+                    TariffType.fixed -> 0
+                    TariffType.`package` -> body.includedHours.coerceAtLeast(0)
+                }
+                val created = TariffRepository.create(
+                    name = name,
+                    type = type,
+                    durationDays = durationDays,
+                    includedHours = includedHours,
+                    price = price,
+                    isActive = body.isActive
+                )
+                call.respond(HttpStatusCode.Created, created.toTariffResponse())
+            }
+            get("/api/staff/tariffs/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                val row = TariffRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тариф не найден"))
+                        return@get
+                    }
+                call.respond(row.toTariffResponse())
+            }
+            patch("/api/staff/tariffs/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@patch
+                }
+                val current = TariffRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тариф не найден"))
+                        return@patch
+                    }
+                val body = call.receive<UpdateTariffRequest>()
+                if (body.name == null && body.durationDays == null && body.includedHours == null && body.price == null && body.isActive == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите хотя бы одно поле для изменения"))
+                    return@patch
+                }
+                val newName = body.name?.trim()
+                if (newName != null && newName.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Название не может быть пустым"))
+                    return@patch
+                }
+                if (newName != null) {
+                    val existing = TariffRepository.findByName(newName)
+                    if (existing != null && existing.tariffId != id) {
+                        call.respond(HttpStatusCode.Conflict, mapOf("error" to "Тариф с таким названием уже существует"))
+                        return@patch
+                    }
+                }
+                val activeCount = TariffRepository.countActiveSubscriptions(id)
+                if (activeCount > 0 && (body.durationDays != null || body.includedHours != null || body.price != null)) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        mapOf("error" to "Нельзя менять длительность, включённые часы или цену при наличии активных подписок по этому тарифу")
+                    )
+                    return@patch
+                }
+                val price = body.price?.trim()?.toBigDecimalOrNull()
+                if (body.price != null && price == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректная цена"))
+                    return@patch
+                }
+                if (price != null) {
+                    if (price < BigDecimal.ZERO) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Цена не может быть отрицательной"))
+                        return@patch
+                    }
+                    if (price.stripTrailingZeros().scale() > 2) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Цена: не более двух знаков после запятой"))
+                        return@patch
+                    }
+                }
+                val effectiveDurationDays = if (current.type == TariffType.hourly) null else body.durationDays
+                val effectiveIncludedHours = when (current.type) {
+                    TariffType.hourly -> null
+                    TariffType.fixed -> null
+                    TariffType.`package` -> body.includedHours
+                }
+                val updated = TariffRepository.update(
+                    tariffId = id,
+                    name = newName,
+                    durationDays = effectiveDurationDays,
+                    includedHours = effectiveIncludedHours,
+                    price = price,
+                    isActive = body.isActive
+                )
+                call.respond(updated!!.toTariffResponse())
+            }
+            delete("/api/staff/tariffs/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@delete
+                }
+                val current = TariffRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тариф не найден"))
+                        return@delete
+                    }
+                val count = TariffRepository.countSubscriptions(id)
+                if (count > 0) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        DeleteTariffConflictResponse(error = "Невозможно удалить: по тарифу есть подписки", subscriptionCount = count)
+                    )
+                    return@delete
+                }
+                TariffRepository.delete(id)
+                call.respond(HttpStatusCode.NoContent)
+            }
+
+            // ----- Tariff-Space assignments -----
+            get("/api/staff/tariff-spaces") {
+                val pairs = TariffRepository.getAllAssignments()
+                call.respond(pairs.map { TariffSpaceAssignment(tariffId = it.first, spaceId = it.second) })
+            }
+            put("/api/staff/tariff-spaces") {
+                val body = call.receive<PutTariffSpacesRequest>()
+                val pairs = body.assignments.map { it.tariffId to it.spaceId }
+                TariffRepository.setAssignments(pairs)
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }
@@ -434,4 +608,16 @@ private fun AmenityRow.toAmenityResponse() = AmenityResponse(
     id = amenityId,
     name = name,
     description = description
+)
+
+private fun TariffRow.toTariffResponse() = TariffResponse(
+    id = tariffId,
+    name = name,
+    type = type.name,
+    durationDays = durationDays,
+    includedHours = includedHours,
+    price = price.toPlainString(),
+    isActive = isActive,
+    activeSubscriptionCount = TariffRepository.countActiveSubscriptions(tariffId),
+    subscriptionCount = TariffRepository.countSubscriptions(tariffId)
 )

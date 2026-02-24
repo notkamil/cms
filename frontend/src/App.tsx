@@ -31,7 +31,9 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/cabinet" element={<CabinetLayout />}>
               <Route index element={<CabinetPage />} />
-              <Route path="subscriptions" element={<CabinetSubscriptionsPage />} />
+            </Route>
+            <Route path="/subscriptions" element={<CabinetLayout />}>
+              <Route index element={<CabinetSubscriptionsPage />} />
             </Route>
             <Route path="/cms" element={<CmsPage />} />
             <Route path="/staff" element={<StaffLayout />}>

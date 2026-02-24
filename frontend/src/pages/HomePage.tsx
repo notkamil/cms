@@ -100,7 +100,7 @@ export default function HomePage() {
             <nav className="home-header-nav">
               <NavLink to="/" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`} end>Главная</NavLink>
               <NavLink to="/cabinet" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`}>Личный кабинет</NavLink>
-              <NavLink to="/cabinet/subscriptions" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`}>Подписки</NavLink>
+              <NavLink to="/subscriptions" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`}>Подписки</NavLink>
             </nav>
           </div>
           <div className="home-header-right">

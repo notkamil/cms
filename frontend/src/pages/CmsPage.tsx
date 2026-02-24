@@ -72,7 +72,7 @@ export default function CmsPage() {
             <nav className="cabinet-header-nav">
               <NavLink to="/" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Главная</NavLink>
               <NavLink to="/cabinet" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Личный кабинет</NavLink>
-              <NavLink to="/cabinet/subscriptions" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Подписки</NavLink>
+              <NavLink to="/subscriptions" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Подписки</NavLink>
             </nav>
           )}
         </div>

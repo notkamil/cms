@@ -47,8 +47,14 @@ export function StaffLayout({ children }: StaffLayoutProps) {
   const [theme, setTheme] = useState<Theme>(readStoredTheme)
 
   useEffect(() => {
+    document.title = 'CMS/Staff'
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    if (link) link.href = theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'
+    if (link) link.href = theme === 'dark' ? '/favicon-staff-dark.svg' : '/favicon-staff-light.svg'
+    return () => {
+      document.title = 'CMS'
+      const iconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+      if (iconLink) iconLink.href = theme === 'dark' ? '/favicon-dark.svg' : '/favicon-light.svg'
+    }
   }, [theme])
 
   const toggleTheme = () => {

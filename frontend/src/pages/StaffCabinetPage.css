@@ -73,10 +73,42 @@
   color: var(--cabinet-text);
 }
 
-/* Матрица пространства × удобства */
+/* Матрица «Удобства по пространствам» и «Пространства по тарифам»: обёртка с горизонтальным скроллом */
 .staff-matrix-wrap {
   overflow-x: auto;
+  overflow-y: hidden;
   margin-top: 1.5rem;
+  scrollbar-width: thin;
+}
+/* Ползунок: светлая тема — светлый трек, тёмный ползунок; тёмная тема — наоборот */
+.cabinet:not([data-theme="dark"]) .staff-matrix-wrap {
+  scrollbar-color: #888 #ddd;
+}
+.cabinet[data-theme="dark"] .staff-matrix-wrap {
+  scrollbar-color: #666 #3a3a3a;
+}
+.staff-matrix-wrap::-webkit-scrollbar {
+  height: 12px;
+}
+.cabinet:not([data-theme="dark"]) .staff-matrix-wrap::-webkit-scrollbar-track {
+  background: #ddd;
+}
+.cabinet:not([data-theme="dark"]) .staff-matrix-wrap::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 6px;
+}
+.cabinet:not([data-theme="dark"]) .staff-matrix-wrap::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+.cabinet[data-theme="dark"] .staff-matrix-wrap::-webkit-scrollbar-track {
+  background: #3a3a3a;
+}
+.cabinet[data-theme="dark"] .staff-matrix-wrap::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 6px;
+}
+.cabinet[data-theme="dark"] .staff-matrix-wrap::-webkit-scrollbar-thumb:hover {
+  background: #888;
 }
 .staff-matrix-table {
   border-collapse: collapse;
@@ -112,8 +144,48 @@
 .staff-matrix-table td {
   background: var(--cabinet-card-bg);
 }
-.staff-matrix-table input[type="checkbox"] {
+/* Чекбоксы в матрицах и таблицах админки: свой вид, в светлой теме — светлый квадрат */
+.staff-matrix-table input[type="checkbox"],
+.staff-content input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
   cursor: pointer;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  border: 2px solid #999;
+  background: #fff;
+  border-radius: 3px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.staff-matrix-table input[type="checkbox"]:checked,
+.staff-content input[type="checkbox"]:checked {
+  background: #6c8ebf url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L19 7'/%3E%3C/svg%3E") center/85% no-repeat;
+  border-color: #6c8ebf;
+}
+.staff-matrix-table input[type="checkbox"]:disabled,
+.staff-content input[type="checkbox"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Тёмная тема: светлая обводка, тёмный фон */
+.cabinet[data-theme="dark"] .staff-matrix-table input[type="checkbox"],
+.cabinet[data-theme="dark"] .staff-content input[type="checkbox"] {
+  border-color: #888;
+  background: #333;
+}
+.cabinet[data-theme="dark"] .staff-matrix-table input[type="checkbox"]:checked,
+.cabinet[data-theme="dark"] .staff-content input[type="checkbox"]:checked {
+  background-color: #6c8ebf;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L19 7'/%3E%3C/svg%3E");
+  border-color: #6c8ebf;
+}
+/* Select в админке: читаемый фон и ползунок в тёмной теме */
+.staff-content select.cabinet-modal-input {
+  background: var(--cabinet-input-bg);
+  color: var(--cabinet-text);
+  border: 1px solid var(--cabinet-border);
 }
 .staff-matrix-actions {
   margin-top: 0.75rem;

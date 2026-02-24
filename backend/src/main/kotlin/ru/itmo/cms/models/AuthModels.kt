@@ -266,3 +266,23 @@ data class TariffSpaceAssignment(
 data class PutTariffSpacesRequest(
     val assignments: List<TariffSpaceAssignment>
 )
+
+// ----- Staff: Subscriptions -----
+
+@Serializable
+data class StaffSubscriptionResponse(
+    val id: Int,
+    val tariffName: String,
+    val memberEmail: String,
+    val type: String,
+    val startDate: String,
+    val endDate: String,
+    val remainingHours: Int,
+    val status: String,
+    val paymentAmount: Double? = null
+)
+
+@Serializable
+data class CancelSubscriptionRequest(
+    val refundAmount: Double? = null
+)

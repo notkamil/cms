@@ -14,6 +14,7 @@ import StaffSpaceTypesPage from './pages/StaffSpaceTypesPage'
 import StaffSpacesPage from './pages/StaffSpacesPage'
 import StaffAmenitiesPage from './pages/StaffAmenitiesPage'
 import StaffTariffsPage from './pages/StaffTariffsPage'
+import StaffSubscriptionsPage from './pages/StaffSubscriptionsPage'
 import './App.css'
 
 function StaffGate() {
@@ -43,6 +44,7 @@ function App() {
               <Route path="spaces" element={<StaffSpacesPage />} />
               <Route path="amenities" element={<StaffAmenitiesPage />} />
               <Route path="tariffs" element={<StaffTariffsPage />} />
+              <Route path="subscriptions" element={<StaffSubscriptionsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

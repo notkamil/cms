@@ -19,10 +19,13 @@ import ru.itmo.cms.repository.SpaceTypeRepository
 import ru.itmo.cms.repository.SpaceTypeRow
 import ru.itmo.cms.repository.StaffRepository
 import ru.itmo.cms.repository.StaffRow
+import ru.itmo.cms.repository.SubscriptionRepository
+import ru.itmo.cms.repository.StaffSubscriptionRow
 import ru.itmo.cms.repository.TariffRepository
 import ru.itmo.cms.repository.TariffRow
 import ru.itmo.cms.repository.TariffType
 import java.math.BigDecimal
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 fun Application.configureStaffRoutes() {
@@ -557,6 +560,26 @@ fun Application.configureStaffRoutes() {
                 TariffRepository.setAssignments(pairs)
                 call.respond(HttpStatusCode.NoContent)
             }
+
+            // ----- Subscriptions -----
+            get("/api/staff/subscriptions") {
+                val list = SubscriptionRepository.findAllForStaff().map { it.toStaffSubscriptionResponse() }
+                call.respond(list)
+            }
+            post("/api/staff/subscriptions/{id}/cancel") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@post
+                }
+                val body = call.receive<CancelSubscriptionRequest>()
+                val refundAmount = body.refundAmount?.let { BigDecimal.valueOf(it) }
+                val ok = SubscriptionRepository.cancelSubscription(id, refundAmount)
+                if (!ok) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Подписку нельзя отменить (не найдена, не активна или неверная сумма возврата)"))
+                    return@post
+                }
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }
@@ -620,4 +643,18 @@ private fun TariffRow.toTariffResponse() = TariffResponse(
     isActive = isActive,
     activeSubscriptionCount = TariffRepository.countActiveSubscriptions(tariffId),
     subscriptionCount = TariffRepository.countSubscriptions(tariffId)
+)
+
+private val staffDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+
+private fun StaffSubscriptionRow.toStaffSubscriptionResponse() = StaffSubscriptionResponse(
+    id = subscriptionId,
+    tariffName = tariffName,
+    memberEmail = memberEmail,
+    type = tariffType.name,
+    startDate = startDate.format(staffDateFormatter),
+    endDate = endDate.format(staffDateFormatter),
+    remainingHours = remainingHours,
+    status = status.name,
+    paymentAmount = paymentAmount?.toDouble()
 )

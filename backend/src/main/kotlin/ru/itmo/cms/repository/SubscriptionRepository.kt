@@ -24,6 +24,21 @@ data class SubscriptionRow(
     val status: SubscriptionStatus
 )
 
+/** Строка подписки для списка в админке: с email участника, типом тарифа и суммой оплаты (если есть). */
+data class StaffSubscriptionRow(
+    val subscriptionId: Int,
+    val memberId: Int,
+    val memberEmail: String,
+    val tariffId: Int,
+    val tariffName: String,
+    val tariffType: TariffType,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val remainingHours: Int,
+    val status: SubscriptionStatus,
+    val paymentAmount: BigDecimal?
+)
+
 /**
  * Переводит просроченные подписки (status = active, end_date < сегодня) в expired.
  *
@@ -149,5 +164,103 @@ object SubscriptionRepository {
             remainingHours = remainingHours,
             status = SubscriptionStatus.active
         )
+    }
+
+    /** Список всех подписок для админки: с email участника, типом тарифа и суммой оплаты (если есть транзакция оплаты). */
+    fun findAllForStaff(): List<StaffSubscriptionRow> = transaction {
+        markExpiredSubscriptions()
+        val tariffsById = TariffRepository.findAll().associateBy { it.tariffId }
+        val memberIds = SubscriptionsTable.selectAll().map { it[SubscriptionsTable.memberId] }.toSet()
+        val membersById = if (memberIds.isEmpty()) emptyMap() else {
+            MembersTable.selectAll()
+                .filter { it[MembersTable.memberId] in memberIds }
+                .associate { it[MembersTable.memberId] to it[MembersTable.email] }
+        }
+        val paymentBySubscriptionId = TransactionSubscriptionsTable.selectAll()
+            .associate { it[TransactionSubscriptionsTable.subscriptionId] to it[TransactionSubscriptionsTable.transactionId] }
+        val paymentTransactionIds = paymentBySubscriptionId.values.toSet()
+        val paymentAmountByTransactionId = if (paymentTransactionIds.isEmpty()) emptyMap() else {
+            TransactionsTable.selectAll()
+                .filter { it[TransactionsTable.transactionId] in paymentTransactionIds && it[TransactionsTable.transactionType] == TransactionType.payment }
+                .associate { it[TransactionsTable.transactionId] to it[TransactionsTable.amount] }
+        }
+        SubscriptionsTable.selectAll()
+            .orderBy(SubscriptionsTable.subscriptionId, org.jetbrains.exposed.v1.core.SortOrder.DESC)
+            .map { row ->
+                val subscriptionId = row[SubscriptionsTable.subscriptionId]
+                val tariffId = row[SubscriptionsTable.tariffId]
+                val tariff = tariffsById[tariffId]
+                val memberId = row[SubscriptionsTable.memberId]
+                val paymentAmount = paymentBySubscriptionId[subscriptionId]?.let { tid -> paymentAmountByTransactionId[tid] }
+                StaffSubscriptionRow(
+                    subscriptionId = subscriptionId,
+                    memberId = memberId,
+                    memberEmail = membersById[memberId] ?: "",
+                    tariffId = tariffId,
+                    tariffName = tariff?.name ?: "",
+                    tariffType = tariff?.type ?: TariffType.fixed,
+                    startDate = row[SubscriptionsTable.startDate],
+                    endDate = row[SubscriptionsTable.endDate],
+                    remainingHours = row[SubscriptionsTable.remainingHours],
+                    status = row[SubscriptionsTable.status],
+                    paymentAmount = paymentAmount
+                )
+            }
+    }
+
+    /**
+     * Сумма оплаты по подписке (из транзакции payment, связанной через TransactionSubscriptions), или null.
+     */
+    fun getPaymentAmountForSubscription(subscriptionId: Int): BigDecimal? = transaction {
+        val tsRow = TransactionSubscriptionsTable.selectAll().where { TransactionSubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction null
+        val transactionId = tsRow[TransactionSubscriptionsTable.transactionId]
+        val row = TransactionsTable.selectAll()
+            .where { (TransactionsTable.transactionId eq transactionId) and (TransactionsTable.transactionType eq TransactionType.payment) }
+            .singleOrNull() ?: return@transaction null
+        row[TransactionsTable.amount]
+    }
+
+    /**
+     * Отмена подписки. Если refundAmount != null и > 0 — создаётся транзакция refund и пополняется баланс.
+     * @return false если подписка не найдена, не active, или при возврате нет транзакции оплаты/неверная сумма
+     */
+    fun cancelSubscription(subscriptionId: Int, refundAmount: BigDecimal?): Boolean = transaction {
+        val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction false
+        if (subRow[SubscriptionsTable.status] != SubscriptionStatus.active) return@transaction false
+
+        val memberId = subRow[SubscriptionsTable.memberId]
+        val tariffId = subRow[SubscriptionsTable.tariffId]
+        val tariffRow = TariffsTable.selectAll().where { TariffsTable.tariffId eq tariffId }.singleOrNull()
+        val tariffName = tariffRow?.get(TariffsTable.name) ?: ""
+
+        if (refundAmount != null && refundAmount > java.math.BigDecimal.ZERO) {
+            val tsRow = TransactionSubscriptionsTable.selectAll().where { TransactionSubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction false
+            val payTransId = tsRow[TransactionSubscriptionsTable.transactionId]
+            val payRow = TransactionsTable.selectAll()
+                .where { (TransactionsTable.transactionId eq payTransId) and (TransactionsTable.transactionType eq TransactionType.payment) }
+                .singleOrNull() ?: return@transaction false
+            val paymentAmount = payRow[TransactionsTable.amount]
+            if (refundAmount > paymentAmount) return@transaction false
+            val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull() ?: return@transaction false
+            val dateFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+            val startDate = subRow[SubscriptionsTable.startDate]
+            val endDate = subRow[SubscriptionsTable.endDate]
+            val description = "Возврат: подписка «$tariffName» ${startDate.format(dateFmt)}–${endDate.format(dateFmt)}"
+            TransactionsTable.insert {
+                it[TransactionsTable.memberId] = memberId
+                it[TransactionsTable.amount] = refundAmount
+                it[TransactionsTable.transactionType] = TransactionType.refund
+                it[TransactionsTable.transactionDate] = LocalDateTime.now()
+                it[TransactionsTable.description] = description
+            }
+            MembersTable.update(where = { MembersTable.memberId eq memberId }) {
+                it[MembersTable.balance] = memberRow[MembersTable.balance] + refundAmount
+            }
+        }
+
+        SubscriptionsTable.update(where = { SubscriptionsTable.subscriptionId eq subscriptionId }) {
+            it[SubscriptionsTable.status] = SubscriptionStatus.cancelled
+        }
+        true
     }
 }

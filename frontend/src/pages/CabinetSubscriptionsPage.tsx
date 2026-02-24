@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
 import ru from 'date-fns/locale/ru'
 import { get, post, ApiError } from '../api/client'
@@ -82,12 +82,16 @@ export default function CabinetSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionsData | null>(null)
   const [availableTariffs, setAvailableTariffs] = useState<AvailableTariff[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingElapsed, setLoadingElapsed] = useState(0)
+  const loadingStartRef = useRef<number | null>(null)
   const [subscribeTariffId, setSubscribeTariffId] = useState<number | null>(null)
   const [subscribeStartDate, setSubscribeStartDate] = useState<string>(todayISO())
   const [subscribeError, setSubscribeError] = useState<string | null>(null)
   const [subscribeLoading, setSubscribeLoading] = useState(false)
 
   const loadAll = useCallback(() => {
+    loadingStartRef.current = Date.now()
+    setLoadingElapsed(0)
     setLoading(true)
     Promise.all([
       get<SubscriptionsData>('/api/me/subscriptions'),
@@ -107,6 +111,15 @@ export default function CabinetSubscriptionsPage() {
   useEffect(() => {
     loadAll()
   }, [loadAll])
+
+  useEffect(() => {
+    if (!loading) return
+    const start = loadingStartRef.current ?? Date.now()
+    const id = setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [loading])
 
   const openSubscribe = (tariffId: number) => {
     setSubscribeTariffId(tariffId)
@@ -138,12 +151,11 @@ export default function CabinetSubscriptionsPage() {
   }
 
   if (loading) {
-    return (
+    return loadingElapsed >= 1 ? (
       <div className="cabinet-loading-block">
-        <LoadingLogo />
-        <p className="cabinet-loading">Загрузка подписок…</p>
+        <LoadingLogo theme="light" variant="smooth" />
       </div>
-    )
+    ) : null
   }
 
   const current = subscriptions?.current ?? []

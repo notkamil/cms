@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { get, post, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
 import '../pages/CabinetPage.css'
@@ -45,6 +45,8 @@ function formatRemainingMinutes(minutes: number): string {
 export default function StaffSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<StaffSubscription[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingElapsed, setLoadingElapsed] = useState(0)
+  const loadingStartRef = useRef<number | null>(null)
   const [cancelTarget, setCancelTarget] = useState<StaffSubscription | null>(null)
   const [refundChecked, setRefundChecked] = useState(false)
   const [refundAmount, setRefundAmount] = useState('')
@@ -52,6 +54,8 @@ export default function StaffSubscriptionsPage() {
   const [cancelLoading, setCancelLoading] = useState(false)
 
   const loadAll = useCallback(() => {
+    loadingStartRef.current = Date.now()
+    setLoadingElapsed(0)
     setLoading(true)
     get<StaffSubscription[]>('/api/staff/subscriptions', true)
       .then(setSubscriptions)
@@ -62,6 +66,15 @@ export default function StaffSubscriptionsPage() {
   useEffect(() => {
     loadAll()
   }, [loadAll])
+
+  useEffect(() => {
+    if (!loading) return
+    const start = loadingStartRef.current ?? Date.now()
+    const id = setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [loading])
 
   const openCancel = (sub: StaffSubscription) => {
     setCancelTarget(sub)
@@ -107,12 +120,11 @@ export default function StaffSubscriptionsPage() {
   }
 
   if (loading) {
-    return (
+    return loadingElapsed >= 1 ? (
       <div className="cabinet-loading-block">
-        <LoadingLogo theme="light" />
-        <p className="cabinet-loading">Загрузка подписок…</p>
+        <LoadingLogo theme="light" variant="smooth" />
       </div>
-    )
+    ) : null
   }
 
   return (

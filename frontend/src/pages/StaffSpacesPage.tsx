@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, patch, del, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
 import '../pages/CabinetPage.css'
@@ -33,6 +33,8 @@ export default function StaffSpacesPage() {
   const [list, setList] = useState<Space[]>([])
   const [types, setTypes] = useState<SpaceType[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingElapsed, setLoadingElapsed] = useState(0)
+  const loadingStartRef = useRef<number | null>(null)
   const [modal, setModal] = useState<ModalKind>(null)
   const [editId, setEditId] = useState<number | null>(null)
 
@@ -63,6 +65,8 @@ export default function StaffSpacesPage() {
   )
 
   const loadList = useCallback(() => {
+    loadingStartRef.current = Date.now()
+    setLoadingElapsed(0)
     setLoading(true)
     Promise.all([
       get<Space[]>('/api/staff/spaces', true),
@@ -80,6 +84,14 @@ export default function StaffSpacesPage() {
     loadList()
   }, [loadList])
 
+  useEffect(() => {
+    if (!loading) return
+    const start = loadingStartRef.current ?? Date.now()
+    const id = setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [loading])
 
   const openAdd = () => {
     setAddName('')
@@ -228,12 +240,11 @@ export default function StaffSpacesPage() {
   }
 
   if (loading) {
-    return (
+    return loadingElapsed >= 1 ? (
       <div className="cabinet-loading-block">
-        <LoadingLogo />
-        <p className="cabinet-loading">Загрузка пространств…</p>
+        <LoadingLogo theme="light" variant="smooth" />
       </div>
-    )
+    ) : null
   }
 
   return (

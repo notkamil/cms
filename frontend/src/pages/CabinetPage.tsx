@@ -274,7 +274,7 @@ export default function CabinetPage() {
               {transactions.length === 0 ? (
                 <p className="cabinet-history-empty">Пока нет операций</p>
               ) : (
-                <table className="cabinet-table cabinet-history-table">
+                <table className="cabinet-table cabinet-history-table cabinet-transactions-table">
                   <thead>
                     <tr>
                       <th scope="col">Время</th>

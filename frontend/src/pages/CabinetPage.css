@@ -413,6 +413,25 @@
   color: var(--cabinet-text);
 }
 
+/* Таблица истории транзакций: узкая колонка «Сумма», широкая «Комментарий» */
+.cabinet-transactions-table {
+  table-layout: fixed;
+}
+.cabinet-transactions-table th:nth-child(1),
+.cabinet-transactions-table td:nth-child(1) {
+  width: 10rem;
+  box-sizing: border-box;
+}
+.cabinet-transactions-table th:nth-child(2),
+.cabinet-transactions-table td:nth-child(2) {
+  width: 6rem;
+  box-sizing: border-box;
+}
+.cabinet-transactions-table th:nth-child(3),
+.cabinet-transactions-table td:nth-child(3) {
+  min-width: 0;
+}
+
 /* Таблица доступных тарифов: Тип, Длительность, Включ. часы — одинаковой ширины; Цена шире */
 .cabinet-tariffs-available-table {
   table-layout: fixed;

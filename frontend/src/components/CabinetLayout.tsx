@@ -83,7 +83,7 @@ export default function CabinetLayout() {
             <NavLink to="/cabinet" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Личный кабинет</NavLink>
             <NavLink to="/subscriptions" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Подписки</NavLink>
             <NavLink to="/bookings" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Бронирования</NavLink>
-            <NavLink to="/bookings/list" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Мои брони</NavLink>
+            <NavLink to="/bookings/my" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Мои брони</NavLink>
           </nav>
         </div>
         <div className="cabinet-header-right">

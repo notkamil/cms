@@ -41,7 +41,7 @@ function App() {
             <Route path="/bookings" element={<CabinetLayout />}>
               <Route index element={<BookingsPage />} />
             </Route>
-            <Route path="/bookings/list" element={<CabinetLayout />}>
+            <Route path="/bookings/my" element={<CabinetLayout />}>
               <Route index element={<MyBookingsPage />} />
             </Route>
             <Route path="/cms" element={<CmsPage />} />

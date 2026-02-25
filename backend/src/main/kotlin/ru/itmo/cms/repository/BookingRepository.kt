@@ -312,9 +312,7 @@ object BookingRepository {
             ?: return@transaction "Бронирование не найдено"
         if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование уже отменено или завершено"
         val creatorId = row[BookingsTable.createdBy]
-        val participantIds = BookingParticipantsTable.selectAll().where { BookingParticipantsTable.bookingId eq bookingId }
-            .map { it[BookingParticipantsTable.memberId] }
-        if (memberId != creatorId && memberId !in participantIds) return@transaction "Нет прав на отмену этого бронирования"
+        if (memberId != creatorId) return@transaction "Отменить бронирование может только владелец"
         // Бронирование по фикс-подписке отменяется только через админку
         if (row[BookingsTable.bookingType] == BookingType.subscription) {
             val bsRow = BookingSubscriptionsTable.selectAll().where { BookingSubscriptionsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction null

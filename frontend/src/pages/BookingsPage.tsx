@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
 import ru from 'date-fns/locale/ru'
-import { get, post, ApiError } from '../api/client'
+import { get, post, patch, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
 import { formatPrice, formatAmount } from '../utils/formatPrice'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -65,6 +65,7 @@ interface Booking {
   endTime: string
   createdBy: number
   creatorEmail: string | null
+  participantMemberIds?: number[]
   participantEmails: string[]
   type: string
   status: string
@@ -124,9 +125,9 @@ function getBookingColor(b: Booking): string {
   return 'var(--booking-other, #757575)'
 }
 
-/** Отмена доступна: активное бронирование, пользователь — владелец или участник, ещё не началось и не менее чем за 2 ч до начала. */
+/** Отмена доступна только владельцу: активное бронирование, ещё не началось и не менее чем за 2 ч до начала. */
 function canCancelBooking(b: Booking): boolean {
-  if (b.status !== 'confirmed' || (!b.isCreator && !b.isParticipant)) return false
+  if (b.status !== 'confirmed' || !b.isCreator) return false
   const now = Date.now()
   const start = new Date(b.startTime).getTime()
   const end = new Date(b.endTime).getTime()
@@ -165,6 +166,12 @@ export default function BookingsPage() {
   const [participantQuery, setParticipantQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ id: number; name: string; email: string }[]>([])
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>([])
+  const [editParticipantsBooking, setEditParticipantsBooking] = useState<Booking | null>(null)
+  const [editParticipantIds, setEditParticipantIds] = useState<number[]>([])
+  const [editParticipantQuery, setEditParticipantQuery] = useState('')
+  const [editSearchResults, setEditSearchResults] = useState<{ id: number; name: string; email: string }[]>([])
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
   const trackRef = useRef<HTMLDivElement>(null)
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10)
@@ -297,6 +304,38 @@ export default function BookingsPage() {
     }
   }
 
+  const openEditParticipants = () => {
+    if (!viewBooking) return
+    setEditParticipantsBooking(viewBooking)
+    setEditParticipantIds(viewBooking.participantMemberIds ?? [])
+    setEditParticipantQuery('')
+    setEditError(null)
+  }
+
+  const handleSaveEditParticipants = async () => {
+    if (!editParticipantsBooking) return
+    setEditError(null)
+    setEditLoading(true)
+    try {
+      await patch(
+        `/api/me/bookings/${editParticipantsBooking.id}`,
+        { participantMemberIds: editParticipantIds },
+        false
+      )
+      setEditParticipantsBooking(null)
+      loadBookings(selectedDate).then(setBookings)
+      if (viewBooking?.id === editParticipantsBooking.id) {
+        setViewBooking((prev) =>
+          prev ? { ...prev, participantMemberIds: editParticipantIds } : null
+        )
+      }
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : 'Не удалось сохранить')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   const validateCreateTime = (): boolean => {
     if (createStartMinutes % 15 !== 0 || createEndMinutes % 15 !== 0) {
       setCreateTimeError('Время начала и окончания должны быть кратны 15 минутам (например, 10:00, 10:15, 10:30, 10:45).')
@@ -351,6 +390,18 @@ export default function BookingsPage() {
       .catch(() => { if (!cancelled) setSearchResults([]) })
     return () => { cancelled = true }
   }, [participantQuery])
+
+  useEffect(() => {
+    if (!editParticipantQuery.trim()) {
+      setEditSearchResults([])
+      return
+    }
+    let cancelled = false
+    get<{ id: number; name: string; email: string }[]>(`/api/me/members/search?q=${encodeURIComponent(editParticipantQuery)}`)
+      .then((list) => { if (!cancelled) setEditSearchResults(list) })
+      .catch(() => { if (!cancelled) setEditSearchResults([]) })
+    return () => { cancelled = true }
+  }, [editParticipantQuery])
 
   const summaryCount = bookings.filter((b) => b.status === 'confirmed' && (b.isCreator || b.isParticipant)).length
 
@@ -528,16 +579,16 @@ export default function BookingsPage() {
                 <dd>{formatISODate(viewBooking.endTime)} {formatTime(parseISOMinutes(viewBooking.endTime))}</dd>
                 <dt>Способ оплаты</dt>
                 <dd>{viewBooking.type === 'subscription' ? 'Подписка' : 'Разовая оплата'}</dd>
-                <dt>Допущенные люди</dt>
+                <dt>Создатель</dt>
+                <dd>{viewBooking.creatorEmail ?? '—'}</dd>
+                <dt>Участники</dt>
                 <dd>
-                  {viewBooking.creatorEmail && <span>{viewBooking.creatorEmail} (создатель)</span>}
-                  {(viewBooking.participantEmails ?? []).length > 0 && (
-                    <span>
-                      {viewBooking.creatorEmail ? '; ' : ''}
-                      {(viewBooking.participantEmails ?? []).join(', ')}
-                    </span>
-                  )}
-                  {!viewBooking.creatorEmail && (viewBooking.participantEmails ?? []).length === 0 && '—'}
+                  {(() => {
+                    const participants = (viewBooking.participantEmails ?? []).filter(
+                      (e) => e !== viewBooking.creatorEmail
+                    )
+                    return participants.length > 0 ? participants.join(', ') : '—'
+                  })()}
                 </dd>
                 <dt>Статус</dt>
                 <dd>{viewBooking.status === 'confirmed' ? 'Активно' : viewBooking.status === 'cancelled' ? 'Отменено' : 'Завершено'}</dd>
@@ -546,6 +597,17 @@ export default function BookingsPage() {
                 <button type="button" className="cabinet-modal-cancel" onClick={() => { setViewBooking(null); setCancelError(null) }}>
                   Закрыть
                 </button>
+                {viewBooking.isCreator &&
+                  viewBooking.status === 'confirmed' &&
+                  new Date(viewBooking.startTime) > new Date() && (
+                    <button
+                      type="button"
+                      className="cabinet-edit-btn"
+                      onClick={openEditParticipants}
+                    >
+                      Изменить участников
+                    </button>
+                  )}
                 {canCancelBooking(viewBooking) && (
                   <button
                     type="button"
@@ -556,6 +618,84 @@ export default function BookingsPage() {
                     {cancelLoading ? 'Отмена…' : 'Отменить бронирование'}
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editParticipantsBooking && (
+        <div
+          className="cabinet-modal-overlay"
+          onClick={() => {
+            setEditParticipantsBooking(null)
+            setEditError(null)
+          }}
+        >
+          <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cabinet-modal-title">Изменить участников</h3>
+            <div className="cabinet-modal-form">
+              {editError && (
+                <p className="cabinet-modal-error" role="alert">
+                  {editError}
+                </p>
+              )}
+              <p>
+                <strong>{editParticipantsBooking.spaceName}</strong>,{' '}
+                {formatISODate(editParticipantsBooking.startTime)}{' '}
+                {formatTime(parseISOMinutes(editParticipantsBooking.startTime))}–
+                {formatTime(parseISOMinutes(editParticipantsBooking.endTime))}
+              </p>
+              <div className="cabinet-modal-field">
+                <label className="cabinet-modal-label">Поиск по email или телефону</label>
+                <input
+                  type="text"
+                  value={editParticipantQuery}
+                  onChange={(e) => setEditParticipantQuery(e.target.value)}
+                  placeholder="Введите email или телефон"
+                  className="cabinet-modal-input"
+                />
+                {editSearchResults.length > 0 && (
+                  <ul className="bookings-search-results">
+                    {editSearchResults.map((m) => (
+                      <li key={m.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditParticipantIds((prev) =>
+                              prev.includes(m.id) ? prev.filter((id) => id !== m.id) : [...prev, m.id]
+                            )
+                          }}
+                        >
+                          {m.name} ({m.email}) {editParticipantIds.includes(m.id) ? '✓' : ''}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <p className="cabinet-modal-muted">
+                Выбрано участников: {editParticipantIds.length} (создатель в список не входит)
+              </p>
+              <div className="cabinet-modal-actions">
+                <button
+                  type="button"
+                  className="cabinet-modal-cancel"
+                  onClick={() => {
+                    setEditParticipantsBooking(null)
+                    setEditError(null)
+                  }}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="cabinet-modal-submit"
+                  disabled={editLoading}
+                  onClick={handleSaveEditParticipants}
+                >
+                  {editLoading ? 'Сохранение…' : 'Сохранить'}
+                </button>
               </div>
             </div>
           </div>

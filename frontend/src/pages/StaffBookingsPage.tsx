@@ -483,9 +483,12 @@ export default function StaffBookingsPage() {
                         <dd>{viewBooking.creatorEmail ?? '—'}</dd>
                         <dt>Участники</dt>
                         <dd>
-                          {(viewBooking.participantEmails ?? []).length > 0
-                            ? viewBooking.participantEmails.join(', ')
-                            : '—'}
+                          {(() => {
+                            const participants = (viewBooking.participantEmails ?? []).filter(
+                              (e) => e !== viewBooking.creatorEmail
+                            )
+                            return participants.length > 0 ? participants.join(', ') : '—'
+                          })()}
                         </dd>
                         <dt>Статус</dt>
                         <dd>

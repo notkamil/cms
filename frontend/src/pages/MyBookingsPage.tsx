@@ -168,7 +168,7 @@ export default function MyBookingsPage() {
 
   /** Отмена доступна: активное бронирование, пользователь — владелец или участник, ещё не началось и не менее чем за 2 ч до начала. */
   const canCancel = (b: BookingItem) => {
-    if (b.status !== 'confirmed' || (!b.isCreator && !b.isParticipant)) return false
+    if (b.status !== 'confirmed' || !b.isCreator) return false
     const now = Date.now()
     const start = new Date(b.startTime).getTime()
     const end = new Date(b.endTime).getTime()
@@ -256,7 +256,7 @@ export default function MyBookingsPage() {
         {current.length === 0 ? (
           <p className="cabinet-muted">Нет текущих бронирований</p>
         ) : (
-          renderTable(current, true)
+          renderTable(current, current.some((b) => canEdit(b) || canCancel(b)))
         )}
       </section>
 
@@ -265,7 +265,7 @@ export default function MyBookingsPage() {
         {archive.length === 0 ? (
           <p className="cabinet-muted">Нет бронирований в архиве</p>
         ) : (
-          renderTable(archive, false)
+          renderTable(archive, archive.some((b) => canEdit(b) || canCancel(b)))
         )}
       </section>
 

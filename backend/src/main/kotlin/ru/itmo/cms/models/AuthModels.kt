@@ -168,6 +168,31 @@ data class MemberSearchResponse(
     val email: String
 )
 
+@Serializable
+data class StaffBookingDetailResponse(
+    val id: Int,
+    val spaceId: Int,
+    val spaceName: String,
+    val startTime: String,
+    val endTime: String,
+    val createdBy: Int,
+    val creatorEmail: String? = null,
+    val participantMemberIds: List<Int> = emptyList(),
+    val participantEmails: List<String> = emptyList(),
+    val type: String,
+    val status: String,
+    val isCreator: Boolean,
+    val isParticipant: Boolean,
+    val subscriptionId: Int? = null,
+    val tariffType: String? = null
+)
+
+@Serializable
+data class StaffBookingCancelRequest(
+    val returnMinutes: Boolean? = true,
+    val refundAmount: Double? = null
+)
+
 // ----- Staff: Space Types -----
 
 @Serializable

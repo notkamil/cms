@@ -20,11 +20,24 @@ import ru.itmo.cms.repository.SpaceTypeRow
 import ru.itmo.cms.repository.StaffRepository
 import ru.itmo.cms.repository.StaffRow
 import ru.itmo.cms.repository.SubscriptionRepository
+import ru.itmo.cms.repository.SubscriptionStatus
 import ru.itmo.cms.repository.StaffSubscriptionRow
 import ru.itmo.cms.repository.TariffRepository
 import ru.itmo.cms.repository.TariffRow
 import ru.itmo.cms.repository.TariffType
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import ru.itmo.cms.repository.BookingRepository
+import ru.itmo.cms.repository.BookingRepository.BookingWithSubscriptionInfo
+import ru.itmo.cms.repository.BookingTimelineRow
+import ru.itmo.cms.repository.BookingsTable
+import ru.itmo.cms.repository.BookingStatus
+import ru.itmo.cms.repository.MemberRepository
+import ru.itmo.cms.repository.MemberRow
 import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
 
@@ -561,6 +574,99 @@ fun Application.configureStaffRoutes() {
                 call.respond(HttpStatusCode.NoContent)
             }
 
+            // ----- Bookings -----
+            get("/api/staff/bookings") {
+                val dateStr = call.request.queryParameters["date"] ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Параметр date (YYYY-MM-DD) обязателен"))
+                    return@get
+                }
+                val date = try {
+                    LocalDate.parse(dateStr)
+                } catch (_: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректная дата (ожидается YYYY-MM-DD)"))
+                    return@get
+                }
+                val zone = ZoneId.of("Europe/Moscow")
+                val from = date.atStartOfDay()
+                val to = date.plusDays(1).atStartOfDay()
+                val rows = BookingRepository.listForDateRangeStaff(from, to)
+                val list = rows.map { it.toStaffBookingTimelineResponse(zone) }
+                call.respond(list)
+            }
+            get("/api/staff/bookings/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                val zone = ZoneId.of("Europe/Moscow")
+                val info = BookingRepository.findByIdForStaff(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Бронирование не найдено"))
+                        return@get
+                    }
+                call.respond(info.toStaffBookingDetailResponse(zone))
+            }
+            patch("/api/staff/bookings/{id}") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@patch
+                }
+                val failureReason = BookingRepository.updateParticipantsForStaffFailureReason(id)
+                if (failureReason != null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to failureReason))
+                    return@patch
+                }
+                val body = call.receive<UpdateBookingParticipantsRequest>()
+                BookingRepository.updateParticipantsForStaff(id, body.participantMemberIds)
+                call.respond(HttpStatusCode.NoContent)
+            }
+            post("/api/staff/bookings/{id}/cancel") {
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@post
+                }
+                val info = BookingRepository.findByIdForStaff(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Бронирование не найдено"))
+                        return@post
+                    }
+                if (info.tariffType == "fixed" && info.subscriptionId != null) {
+                    val body = call.receiveOrNull<StaffBookingCancelRequest>() ?: StaffBookingCancelRequest()
+                    val refundAmount = body.refundAmount?.let { BigDecimal.valueOf(it) }
+                    val errorMessage = SubscriptionRepository.cancelSubscription(info.subscriptionId!!, refundAmount)
+                    when {
+                        errorMessage == null -> { /* подписка отменена */ }
+                        errorMessage == "Подписка уже отменена" -> { /* только снимаем бронирование */ }
+                        else -> {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to errorMessage))
+                            return@post
+                        }
+                    }
+                    BookingRepository.cancelBookingOnly(id)
+                    call.respond(HttpStatusCode.NoContent)
+                    return@post
+                }
+                val bookingRow = BookingsTable.selectAll().where { BookingsTable.bookingId eq id }.singleOrNull()
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Бронирование не найдено"))
+                        return@post
+                    }
+                if (bookingRow[BookingsTable.status] != BookingStatus.confirmed) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Бронирование уже отменено или завершено"))
+                    return@post
+                }
+                val body = call.receiveOrNull<StaffBookingCancelRequest>() ?: StaffBookingCancelRequest()
+                val returnMinutes = body.returnMinutes ?: true
+                BookingRepository.cancelWithSideEffectsStaff(id, returnMinutes)
+                call.respond(HttpStatusCode.NoContent)
+            }
+
+            get("/api/staff/members/search") {
+                val q = call.parameters["q"]?.trim() ?: ""
+                val list = MemberRepository.searchByEmailOrPhone(q).map { it.toMemberSearchResponse() }
+                call.respond(list)
+            }
+
             // ----- Subscriptions -----
             get("/api/staff/subscriptions") {
                 val list = SubscriptionRepository.findAllForStaff().map { it.toStaffSubscriptionResponse() }
@@ -573,9 +679,9 @@ fun Application.configureStaffRoutes() {
                 }
                 val body = call.receive<CancelSubscriptionRequest>()
                 val refundAmount = body.refundAmount?.let { BigDecimal.valueOf(it) }
-                val ok = SubscriptionRepository.cancelSubscription(id, refundAmount)
-                if (!ok) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Подписку нельзя отменить (не найдена, не активна или неверная сумма возврата)"))
+                val errorMessage = SubscriptionRepository.cancelSubscription(id, refundAmount)
+                if (errorMessage != null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to errorMessage))
                     return@post
                 }
                 call.respond(HttpStatusCode.NoContent)
@@ -657,4 +763,47 @@ private fun StaffSubscriptionRow.toStaffSubscriptionResponse() = StaffSubscripti
     remainingMinutes = remainingMinutes,
     status = status.name,
     paymentAmount = paymentAmount?.toDouble()
+)
+
+private val staffZone = ZoneId.of("Europe/Moscow")
+private val staffDateTimeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+
+private fun BookingTimelineRow.toStaffBookingTimelineResponse(zone: ZoneId) = BookingTimelineResponse(
+    id = bookingId,
+    spaceId = spaceId,
+    spaceName = spaceName,
+    startTime = startTime.atZone(zone).format(staffDateTimeFormatter),
+    endTime = endTime.atZone(zone).format(staffDateTimeFormatter),
+    createdBy = createdBy,
+    creatorEmail = creatorEmail,
+    participantMemberIds = participantMemberIds,
+    participantEmails = participantEmails,
+    type = bookingType.name,
+    status = status.name,
+    isCreator = isCreator,
+    isParticipant = isParticipant
+)
+
+private fun BookingWithSubscriptionInfo.toStaffBookingDetailResponse(zone: ZoneId) = StaffBookingDetailResponse(
+    id = row.bookingId,
+    spaceId = row.spaceId,
+    spaceName = row.spaceName,
+    startTime = row.startTime.atZone(zone).format(staffDateTimeFormatter),
+    endTime = row.endTime.atZone(zone).format(staffDateTimeFormatter),
+    createdBy = row.createdBy,
+    creatorEmail = row.creatorEmail,
+    participantMemberIds = row.participantMemberIds,
+    participantEmails = row.participantEmails,
+    type = row.bookingType.name,
+    status = row.status.name,
+    isCreator = row.isCreator,
+    isParticipant = row.isParticipant,
+    subscriptionId = subscriptionId,
+    tariffType = tariffType
+)
+
+private fun MemberRow.toMemberSearchResponse() = MemberSearchResponse(
+    id = memberId,
+    name = name,
+    email = email
 )

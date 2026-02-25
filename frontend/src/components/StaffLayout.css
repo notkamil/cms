@@ -56,6 +56,16 @@
   border-bottom: 4px solid #0a7d47;
 }
 
+/* Разрешаем перенос пунктов навигации на вторую строку, если не помещаются */
+.staff-layout .cabinet-header-left {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.staff-layout .cabinet-header-nav {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 /* Контент staff: те же отступы, что в cabinet (padding: 2rem) */
 .staff-layout .staff-main {
   max-width: none;

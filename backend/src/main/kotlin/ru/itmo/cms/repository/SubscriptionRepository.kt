@@ -57,6 +57,11 @@ fun markExpiredSubscriptions(): Unit = transaction {
 
 object SubscriptionRepository {
 
+    /** Статус подписки или null, если не найдена. */
+    fun getStatus(subscriptionId: Int): SubscriptionStatus? = transaction {
+        SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull()?.get(SubscriptionsTable.status)
+    }
+
     fun findByMemberId(memberId: Int): List<SubscriptionRow> = transaction {
         val tariffsById = TariffRepository.findAll().associateBy { it.tariffId }
         SubscriptionsTable.selectAll()
@@ -228,11 +233,13 @@ object SubscriptionRepository {
 
     /**
      * Отмена подписки. Если refundAmount != null и > 0 — создаётся транзакция refund и пополняется баланс.
-     * @return false если подписка не найдена, не active, или при возврате нет транзакции оплаты/неверная сумма
+     * Разрешена для active и expired (чтобы сотрудник мог отменить уже истёкшую подписку и её бронирования).
+     * @return null при успехе, иначе текст ошибки
      */
-    fun cancelSubscription(subscriptionId: Int, refundAmount: BigDecimal?): Boolean = transaction {
-        val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction false
-        if (subRow[SubscriptionsTable.status] != SubscriptionStatus.active) return@transaction false
+    fun cancelSubscription(subscriptionId: Int, refundAmount: BigDecimal?): String? = transaction {
+        val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction "Подписка не найдена"
+        val status = subRow[SubscriptionsTable.status]
+        if (status != SubscriptionStatus.active && status != SubscriptionStatus.expired) return@transaction "Подписка уже отменена"
 
         val memberId = subRow[SubscriptionsTable.memberId]
         val tariffId = subRow[SubscriptionsTable.tariffId]
@@ -240,14 +247,14 @@ object SubscriptionRepository {
         val tariffName = tariffRow?.get(TariffsTable.name) ?: ""
 
         if (refundAmount != null && refundAmount > java.math.BigDecimal.ZERO) {
-            val tsRow = TransactionSubscriptionsTable.selectAll().where { TransactionSubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction false
+            val tsRow = TransactionSubscriptionsTable.selectAll().where { TransactionSubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction "Не найдена связь с оплатой (возврат невозможен)"
             val payTransId = tsRow[TransactionSubscriptionsTable.transactionId]
             val payRow = TransactionsTable.selectAll()
                 .where { (TransactionsTable.transactionId eq payTransId) and (TransactionsTable.transactionType eq TransactionType.payment) }
-                .singleOrNull() ?: return@transaction false
+                .singleOrNull() ?: return@transaction "Не найдена связь с оплатой (возврат невозможен)"
             val paymentAmount = payRow[TransactionsTable.amount]
-            if (refundAmount > paymentAmount) return@transaction false
-            val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull() ?: return@transaction false
+            if (refundAmount > paymentAmount) return@transaction "Сумма возврата превышает сумму оплаты"
+            val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull() ?: return@transaction "Участник не найден"
             val dateFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy")
             val startDate = subRow[SubscriptionsTable.startDate]
             val endDate = subRow[SubscriptionsTable.endDate]
@@ -269,6 +276,6 @@ object SubscriptionRepository {
         }
         // Все подтверждённые бронирования по этой подписке (в т.ч. фикс) переводим в cancelled
         BookingRepository.cancelBookingsBySubscriptionId(subscriptionId)
-        true
+        null
     }
 }

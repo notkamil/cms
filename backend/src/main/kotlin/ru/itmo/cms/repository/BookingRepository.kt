@@ -37,7 +37,6 @@ object BookingRepository {
     /** Бронирования в диапазоне [from, to) для таймлайна. creatorEmail/participantEmails заполнены только для своих/участниковых. */
     fun listForDateRange(from: LocalDateTime, to: LocalDateTime, memberId: Int): List<BookingTimelineRow> = transaction {
         val spacesById = SpaceRepository.findAll().associateBy { it.spaceId }
-        val membersById = MemberRepository.findById(memberId)?.let { mapOf(memberId to it) } ?: emptyMap()
         val allMemberIds = mutableSetOf<Int>()
         val bookingRows = BookingsTable.selectAll()
             .where {
@@ -77,6 +76,65 @@ object BookingRepository {
                 isParticipant = isParticipant
             )
         }
+    }
+
+    /** Бронирования в диапазоне [from, to) для админки: все бронирования, всегда с email создателя и участников. */
+    fun listForDateRangeStaff(from: LocalDateTime, to: LocalDateTime): List<BookingTimelineRow> = transaction {
+        val spacesById = SpaceRepository.findAll().associateBy { it.spaceId }
+        val allMemberIds = mutableSetOf<Int>()
+        val bookingRows = BookingsTable.selectAll()
+            .where {
+                (BookingsTable.startTime less to) and (BookingsTable.endTime greater from)
+            }
+            .toList()
+        bookingRows.forEach { row ->
+            allMemberIds.add(row[BookingsTable.createdBy])
+            BookingParticipantsTable.selectAll().where { BookingParticipantsTable.bookingId eq row[BookingsTable.bookingId] }
+                .forEach { pr -> allMemberIds.add(pr[BookingParticipantsTable.memberId]) }
+        }
+        val memberEmails = if (allMemberIds.isEmpty()) emptyMap<Int, String>() else {
+            MembersTable.selectAll().filter { it[MembersTable.memberId] in allMemberIds }
+                .associate { it[MembersTable.memberId] to it[MembersTable.email] }
+        }
+        bookingRows.map { row ->
+            val bid = row[BookingsTable.bookingId]
+            val creatorId = row[BookingsTable.createdBy]
+            val participantIds = BookingParticipantsTable.selectAll().where { BookingParticipantsTable.bookingId eq bid }
+                .map { it[BookingParticipantsTable.memberId] }
+            BookingTimelineRow(
+                bookingId = bid,
+                spaceId = row[BookingsTable.spaceId],
+                spaceName = spacesById[row[BookingsTable.spaceId]]?.name ?: "",
+                startTime = row[BookingsTable.startTime],
+                endTime = row[BookingsTable.endTime],
+                createdBy = creatorId,
+                creatorEmail = memberEmails[creatorId],
+                participantMemberIds = participantIds,
+                participantEmails = participantIds.map { memberEmails[it] ?: "" },
+                bookingType = row[BookingsTable.bookingType],
+                status = row[BookingsTable.status],
+                isCreator = false,
+                isParticipant = false
+            )
+        }
+    }
+
+    /** Бронирование по id с информацией о подписке (subscriptionId, tariffType) для админки. */
+    data class BookingWithSubscriptionInfo(
+        val row: BookingTimelineRow,
+        val subscriptionId: Int?,
+        val tariffType: String?
+    )
+
+    fun findByIdForStaff(bookingId: Int): BookingWithSubscriptionInfo? = transaction {
+        val row = findById(bookingId) ?: return@transaction null
+        val bsRow = BookingSubscriptionsTable.selectAll().where { BookingSubscriptionsTable.bookingId eq bookingId }.singleOrNull()
+        val (subId, tariffType) = if (bsRow != null) {
+            val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq bsRow[BookingSubscriptionsTable.subscriptionId] }.singleOrNull()
+            val tt = subRow?.let { TariffRepository.findById(it[SubscriptionsTable.tariffId])?.type?.name }
+            Pair(bsRow[BookingSubscriptionsTable.subscriptionId], tt)
+        } else Pair(null, null)
+        BookingWithSubscriptionInfo(row, subId, tariffType)
     }
 
     /**
@@ -322,6 +380,64 @@ object BookingRepository {
         }
     }
 
+    /** Отмена бронирования сотрудником. Для фикс-подписки не вызывать (маршрут возвращает 400 с subscriptionId). returnMinutes — вернуть минуты в пакетную подписку. */
+    fun cancelWithSideEffectsStaff(bookingId: Int, returnMinutes: Boolean) = transaction {
+        val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+        val startTime = row[BookingsTable.startTime]
+        val endTime = row[BookingsTable.endTime]
+        val durationMinutes = java.time.Duration.between(startTime, endTime).toMinutes().toInt()
+        when (row[BookingsTable.bookingType]) {
+            BookingType.one_time -> {
+                val oneOffRow = OneOffsTable.selectAll().where { OneOffsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+                val oneOffId = oneOffRow[OneOffsTable.oneOffId]
+                val payMemberId = oneOffRow[OneOffsTable.memberId]
+                val toRefundRow = TransactionOneOffsTable.selectAll().where { TransactionOneOffsTable.oneOffId eq oneOffId }.singleOrNull() ?: return@transaction
+                val payTransId = toRefundRow[TransactionOneOffsTable.transactionId]
+                val payTrans = TransactionsTable.selectAll()
+                    .where { (TransactionsTable.transactionId eq payTransId) and (TransactionsTable.transactionType eq TransactionType.payment) }
+                    .singleOrNull() ?: return@transaction
+                val amount = payTrans[TransactionsTable.amount]
+                val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq payMemberId }.singleOrNull() ?: return@transaction
+                val newBalance = memberRow[MembersTable.balance] + amount
+                MembersTable.update(where = { MembersTable.memberId eq payMemberId }) {
+                    it[MembersTable.balance] = newBalance
+                }
+                val space = SpaceRepository.findById(row[BookingsTable.spaceId]) ?: return@transaction
+                val dateTimeFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                val desc = "Возврат по бронированию «${space.name}», ${startTime.format(dateTimeFmt)} – ${endTime.format(dateTimeFmt)}"
+                TransactionsTable.insert {
+                    it[TransactionsTable.memberId] = payMemberId
+                    it[TransactionsTable.amount] = amount
+                    it[TransactionsTable.transactionType] = TransactionType.refund
+                    it[TransactionsTable.transactionDate] = LocalDateTime.now()
+                    it[TransactionsTable.description] = desc
+                }
+            }
+            BookingType.subscription -> {
+                val bsRow = BookingSubscriptionsTable.selectAll().where { BookingSubscriptionsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+                val subscriptionId = bsRow[BookingSubscriptionsTable.subscriptionId]
+                val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction
+                val tariff = TariffRepository.findById(subRow[SubscriptionsTable.tariffId]) ?: return@transaction
+                if (tariff.type == TariffType.`package` && returnMinutes) {
+                    val rem = subRow[SubscriptionsTable.remainingMinutes]
+                    SubscriptionsTable.update(where = { SubscriptionsTable.subscriptionId eq subscriptionId }) {
+                        it[SubscriptionsTable.remainingMinutes] = rem + durationMinutes
+                    }
+                }
+            }
+        }
+        BookingsTable.update(where = { BookingsTable.bookingId eq bookingId }) {
+            it[BookingsTable.status] = BookingStatus.cancelled
+        }
+    }
+
+    /** Только перевести бронирование в cancelled (без возврата и без возврата минут). Для «сирот» — бронирований по уже закрытой подписке. */
+    fun cancelBookingOnly(bookingId: Int) = transaction {
+        BookingsTable.update(where = { BookingsTable.bookingId eq bookingId }) {
+            it[BookingsTable.status] = BookingStatus.cancelled
+        }
+    }
+
     fun findById(bookingId: Int): BookingTimelineRow? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction null
         val space = SpaceRepository.findById(row[BookingsTable.spaceId]) ?: return@transaction null
@@ -378,5 +494,22 @@ object BookingRepository {
                 it[BookingParticipantsTable.memberId] = pid
             }
         }
+    }
+
+    /** Проверка возможности редактирования участников сотрудником; null — можно. */
+    fun updateParticipantsForStaffFailureReason(bookingId: Int): String? = transaction {
+        val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
+            ?: return@transaction "Бронирование не найдено"
+        if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование отменено или завершено"
+        val startTime = row[BookingsTable.startTime]
+        if (startTime <= LocalDateTime.now()) return@transaction "Бронирование уже началось"
+        null
+    }
+
+    /** Обновить участников бронирования (сотрудник; без проверки создателя). */
+    fun updateParticipantsForStaff(bookingId: Int, participantMemberIds: List<Int>) = transaction {
+        val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+        val creatorId = row[BookingsTable.createdBy]
+        updateParticipants(bookingId, participantMemberIds, creatorId)
     }
 }

@@ -15,6 +15,7 @@ import StaffSpacesPage from './pages/StaffSpacesPage'
 import StaffAmenitiesPage from './pages/StaffAmenitiesPage'
 import StaffTariffsPage from './pages/StaffTariffsPage'
 import StaffSubscriptionsPage from './pages/StaffSubscriptionsPage'
+import StaffBookingsPage from './pages/StaffBookingsPage'
 import BookingsPage from './pages/BookingsPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import './App.css'
@@ -53,6 +54,7 @@ function App() {
               <Route path="amenities" element={<StaffAmenitiesPage />} />
               <Route path="tariffs" element={<StaffTariffsPage />} />
               <Route path="subscriptions" element={<StaffSubscriptionsPage />} />
+              <Route path="bookings" element={<StaffBookingsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

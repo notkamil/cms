@@ -9,6 +9,13 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'occupied', label: 'Занято' },
   { value: 'maintenance', label: 'Ремонт' },
 ]
+const STATUS_OPTIONS_EDIT: { value: string; label: string }[] = [
+  ...STATUS_OPTIONS,
+  { value: 'disabled', label: 'Архивное' },
+]
+function statusLabel(status: string): string {
+  return STATUS_OPTIONS_EDIT.find((o) => o.value === status)?.label ?? status
+}
 
 interface SpaceType {
   id: number
@@ -64,6 +71,7 @@ export default function StaffSpacesPage() {
 
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [restoreLoadingId, setRestoreLoadingId] = useState<number | null>(null)
 
   const [typeModal, setTypeModal] = useState<TypeModalKind>(null)
   const [typeEditId, setTypeEditId] = useState<number | null>(null)
@@ -82,6 +90,14 @@ export default function StaffSpacesPage() {
   const sortedList = useMemo(
     () => [...list].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
     [list]
+  )
+  const sortedActiveSpaces = useMemo(
+    () => sortedList.filter((s) => s.status !== 'disabled'),
+    [sortedList]
+  )
+  const sortedArchivedSpaces = useMemo(
+    () => sortedList.filter((s) => s.status === 'disabled'),
+    [sortedList]
   )
   const sortedTypes = useMemo(
     () => [...types].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
@@ -135,7 +151,7 @@ export default function StaffSpacesPage() {
     setEditFloor(String(row.floor))
     setEditCapacity(String(row.capacity))
     setEditDescription(row.description ?? '')
-    setEditStatus(row.status)
+    setEditStatus(row.status === 'disabled' ? 'available' : row.status)
     setEditError(null)
     setModal('edit')
   }
@@ -249,8 +265,17 @@ export default function StaffSpacesPage() {
   }
   const canDeleteType = deleteTypeSpaces.length === 0
 
-  const statusLabel = (status: string) =>
-    STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status
+  const handleRestore = async (spaceId: number) => {
+    setRestoreLoadingId(spaceId)
+    try {
+      await patch(`/api/staff/spaces/${spaceId}`, { status: 'available' }, true)
+      loadList()
+    } catch {
+      // ignore
+    } finally {
+      setRestoreLoadingId(null)
+    }
+  }
 
   const submitAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -370,8 +395,8 @@ export default function StaffSpacesPage() {
     <>
       <div className="staff-content staff-content--wider">
         <h2 className="cabinet-history-title">Пространства</h2>
-        {sortedList.length === 0 ? (
-          <p className="cabinet-history-empty">Нет пространств</p>
+        {sortedActiveSpaces.length === 0 ? (
+          <p className="cabinet-history-empty">Нет активных пространств</p>
         ) : (
           <table className="cabinet-table cabinet-history-table staff-spaces-table">
             <thead>
@@ -386,7 +411,7 @@ export default function StaffSpacesPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedList.map((row) => (
+              {sortedActiveSpaces.map((row) => (
                 <tr key={row.id}>
                   <td>{row.name}</td>
                   <td>{row.typeName}</td>
@@ -416,6 +441,46 @@ export default function StaffSpacesPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {sortedArchivedSpaces.length > 0 && (
+          <section className="cabinet-section" style={{ marginTop: '1.5rem' }}>
+            <h3 className="cabinet-section-title">Архивные пространства</h3>
+            <table className="cabinet-table cabinet-history-table staff-spaces-table">
+              <thead>
+                <tr>
+                  <th scope="col">Название</th>
+                  <th scope="col">Тип</th>
+                  <th scope="col">Этаж</th>
+                  <th scope="col">Вместимость</th>
+                  <th scope="col">Описание</th>
+                  <th scope="col">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedArchivedSpaces.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.name}</td>
+                    <td>{row.typeName}</td>
+                    <td>{row.floor}</td>
+                    <td>{row.capacity}</td>
+                    <td>{row.description || '—'}</td>
+                    <td>
+                      <div className="cabinet-table-actions-cell">
+                        <button
+                          type="button"
+                          className="cabinet-edit-btn"
+                          disabled={restoreLoadingId === row.id}
+                          onClick={() => handleRestore(row.id)}
+                        >
+                          {restoreLoadingId === row.id ? '…' : 'Восстановить'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
         )}
         <div className="cabinet-actions">
           <button

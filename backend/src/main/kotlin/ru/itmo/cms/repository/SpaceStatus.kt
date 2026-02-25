@@ -5,7 +5,8 @@ import org.postgresql.util.PGobject
 enum class SpaceStatus {
     available,
     occupied,
-    maintenance
+    maintenance,
+    disabled
 }
 
 /** PGobject для записи PostgreSQL enum space_status */

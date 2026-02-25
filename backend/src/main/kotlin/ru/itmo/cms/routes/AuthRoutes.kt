@@ -404,7 +404,7 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
                     return@get
                 }
-                val list = SpaceRepository.findAll().map { SpaceForBookingsResponse(id = it.spaceId, name = it.name, floor = it.floor) }
+                val list = SpaceRepository.findAllActive().map { SpaceForBookingsResponse(id = it.spaceId, name = it.name, floor = it.floor) }
                 call.respond(list)
             }
 

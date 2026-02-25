@@ -7,7 +7,8 @@
 -- ENUM-types
 -- ============================================================
 
-CREATE TYPE space_status        AS ENUM ('available', 'occupied', 'maintenance');
+-- Для существующей БД: ALTER TYPE space_status ADD VALUE 'disabled';
+CREATE TYPE space_status        AS ENUM ('available', 'occupied', 'maintenance', 'disabled');
 -- tariff_type: fixed (фикс, одно место), hourly (почасовой), package (пакет, пул пространств)
 -- Если в БД уже был 'monthly', выполните: ALTER TYPE tariff_type RENAME VALUE 'monthly' TO 'fixed';
 CREATE TYPE tariff_type         AS ENUM ('fixed', 'hourly', 'package');

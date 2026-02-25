@@ -34,6 +34,16 @@ data class BookingTimelineRow(
 
 object BookingRepository {
 
+    /** Количество активных предстоящих бронирований по пространству (status = confirmed, endTime > now). Нужно для проверки перед отключением пространства. */
+    fun countActiveUpcomingBookingsForSpace(spaceId: Int): Int = transaction {
+        val now = LocalDateTime.now()
+        BookingsTable.selectAll().where {
+            (BookingsTable.spaceId eq spaceId) and
+                (BookingsTable.status eq BookingStatus.confirmed) and
+                (BookingsTable.endTime greater now)
+        }.toList().size
+    }
+
     /** Бронирования в диапазоне [from, to) для таймлайна. creatorEmail/participantEmails заполнены только для своих/участниковых. */
     fun listForDateRange(from: LocalDateTime, to: LocalDateTime, memberId: Int): List<BookingTimelineRow> = transaction {
         val spacesById = SpaceRepository.findAll().associateBy { it.spaceId }
@@ -219,6 +229,8 @@ object BookingRepository {
         if (durationMinutes <= 0) return@transaction null
         if (durationMinutes % 15 != 0) return@transaction null
         if (startTime.minute % 15 != 0 || startTime.second != 0 || startTime.nano != 0) return@transaction null
+        val space = SpaceRepository.findById(spaceId) ?: return@transaction null
+        if (space.status == "disabled") return@transaction null
         if (hasOverlap(spaceId, startTime, endTime, null)) return@transaction null
 
         when (bookingType) {

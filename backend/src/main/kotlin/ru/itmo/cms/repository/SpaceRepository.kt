@@ -2,6 +2,7 @@ package ru.itmo.cms.repository
 
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -22,6 +23,7 @@ data class SpaceRow(
 private fun stringToSpaceStatus(s: String): SpaceStatus = when (s.trim().lowercase()) {
     "occupied" -> SpaceStatus.occupied
     "maintenance" -> SpaceStatus.maintenance
+    "disabled" -> SpaceStatus.disabled
     else -> SpaceStatus.available
 }
 
@@ -41,6 +43,14 @@ object SpaceRepository {
     fun findAll(): List<SpaceRow> = transaction {
         val typeNames = SpaceTypeRepository.findAll().associate { it.spaceTypeId to it.name }
         SpacesTable.selectAll().map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
+    }
+
+    /** Пространства с статусом != disabled (для бронирований, подписок, выбора пространства). */
+    fun findAllActive(): List<SpaceRow> = transaction {
+        val typeNames = SpaceTypeRepository.findAll().associate { it.spaceTypeId to it.name }
+        SpacesTable.selectAll()
+            .where { SpacesTable.status neq SpaceStatus.disabled }
+            .map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
     }
 
     fun findById(spaceId: Int): SpaceRow? = transaction {
@@ -88,7 +98,7 @@ object SpaceRepository {
         status: String? = null
     ): SpaceRow? = transaction {
         val existing = SpacesTable.selectAll().where { SpacesTable.spaceId eq spaceId }.singleOrNull() ?: return@transaction null
-        val statusEnum = status?.trim()?.lowercase()?.takeIf { it in listOf("available", "occupied", "maintenance") }?.let { stringToSpaceStatus(it) }
+        val statusEnum = status?.trim()?.lowercase()?.takeIf { it in listOf("available", "occupied", "maintenance", "disabled") }?.let { stringToSpaceStatus(it) }
         SpacesTable.update(where = { SpacesTable.spaceId eq spaceId }) { stmt ->
             name?.let { stmt[SpacesTable.name] = it.trim() }
             spaceTypeId?.let { stmt[SpacesTable.spaceTypeId] = it }
@@ -100,8 +110,12 @@ object SpaceRepository {
         findById(spaceId)
     }
 
-    fun delete(spaceId: Int): Boolean = transaction {
-        SpaceAmenitiesTable.deleteWhere { SpaceAmenitiesTable.spaceId eq spaceId }
-        SpacesTable.deleteWhere { SpacesTable.spaceId eq spaceId } > 0
+    /** Мягкое удаление: устанавливает status = disabled. Сохраняет историю (бронирования, тарифы). */
+    fun setDisabled(spaceId: Int): SpaceRow? = transaction {
+        val row = SpacesTable.selectAll().where { SpacesTable.spaceId eq spaceId }.singleOrNull() ?: return@transaction null
+        SpacesTable.update(where = { SpacesTable.spaceId eq spaceId }) {
+            it[SpacesTable.status] = SpaceStatus.disabled
+        }
+        findById(spaceId)
     }
 }

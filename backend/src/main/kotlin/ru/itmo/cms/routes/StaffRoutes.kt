@@ -557,11 +557,24 @@ fun Application.configureStaffRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                     return@delete
                 }
-                if (SpaceRepository.findById(id) == null) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пространство не найдено"))
+                val space = SpaceRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пространство не найдено"))
+                        return@delete
+                    }
+                if (space.status == "disabled") {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Пространство уже отключено (архивное)"))
                     return@delete
                 }
-                SpaceRepository.delete(id)
+                val activeBookings = BookingRepository.countActiveUpcomingBookingsForSpace(id)
+                if (activeBookings > 0) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        mapOf("error" to "Невозможно отключить: есть активные предстоящие бронирования ($activeBookings)")
+                    )
+                    return@delete
+                }
+                SpaceRepository.setDisabled(id)
                 call.respond(HttpStatusCode.NoContent)
             }
 

@@ -29,6 +29,7 @@ function roleLabel(role: string): string {
 
 type ModalKind = 'add' | 'edit' | 'dismiss' | 'restore' | null
 
+/** Staff CRUD: list, add, edit, dismiss, restore employees. */
 export default function StaffStaffPage() {
   const { staffUser } = useStaffAuth()
   const [list, setList] = useState<StaffItem[]>([])

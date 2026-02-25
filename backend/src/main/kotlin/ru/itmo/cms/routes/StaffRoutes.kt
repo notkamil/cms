@@ -50,6 +50,11 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+/**
+ * Registers all staff (admin) API routes: login, profile, staff CRUD, space types,
+ * spaces, amenities, tariffs, subscriptions, bookings, settings, member search.
+ * Uses JWT auth with audience "cms-staff".
+ */
 fun Application.configureStaffRoutes() {
     val jwtConfig = environment.config.config("jwt")
     val secret = jwtConfig.property("secret").getString()

@@ -8,7 +8,12 @@ import {
 } from 'react'
 import { post, ApiError, STORAGE_STAFF_TOKEN_KEY } from '../api/client'
 
-/** Matches backend StaffResponse */
+/**
+ * Staff (admin) auth: login, logout, profile in context and localStorage.
+ * Use StaffAuthProvider at root and useStaffAuth() in staff routes.
+ */
+
+/** Logged-in staff; matches backend StaffResponse. */
 export interface StaffUser {
   id: number
   name: string
@@ -53,6 +58,7 @@ interface StaffAuthProviderProps {
   children: ReactNode
 }
 
+/** Provides staff auth state (staffUser, staffToken, staffLogin, staffLogout, updateStaffUser). */
 export function StaffAuthProvider({ children }: StaffAuthProviderProps) {
   const [staffUser, setStaffUser] = useState<StaffUser | null>(readStoredStaffUser)
   const [staffToken, setStaffToken] = useState<string | null>(readStoredStaffToken)
@@ -91,6 +97,7 @@ export function StaffAuthProvider({ children }: StaffAuthProviderProps) {
   )
 }
 
+/** Hook to access staff auth. Must be used inside StaffAuthProvider. */
 export function useStaffAuth(): StaffAuthContextValue {
   const ctx = useContext(StaffAuthContext)
   if (!ctx) {

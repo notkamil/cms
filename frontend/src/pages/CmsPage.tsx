@@ -39,6 +39,7 @@ function MoonIcon({ size = 24 }: { size?: number }) {
   )
 }
 
+/** Hidden entry: triple-click from home to reach staff login link. */
 export default function CmsPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()

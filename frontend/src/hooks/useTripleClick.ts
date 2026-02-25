@@ -3,7 +3,7 @@ import { useCallback, useRef } from 'react'
 const TRIPLE_CLICK_MS = 500
 
 /**
- * Возвращает обработчик onClick: при тройном клике в течение TRIPLE_CLICK_MS вызывается callback.
+ * Returns an onClick handler: when triple-clicked within TRIPLE_CLICK_MS, invokes callback.
  */
 export function useTripleClick(callback: () => void): (e: React.MouseEvent) => void {
   const countRef = useRef(0)

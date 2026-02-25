@@ -9,12 +9,14 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 
+/** Space type (e.g. meeting room, open area). */
 data class SpaceTypeRow(
     val spaceTypeId: Int,
     val name: String,
     val description: String
 )
 
+/** Minimal space info for conflict lists (e.g. spaces using a type or amenity). */
 data class SpaceSummaryRow(val spaceId: Int, val name: String)
 
 fun ResultRow.toSpaceTypeRow() = SpaceTypeRow(
@@ -23,13 +25,16 @@ fun ResultRow.toSpaceTypeRow() = SpaceTypeRow(
     description = this[SpaceTypesTable.description]
 )
 
+/** Data access for space types (categories of spaces). */
 object SpaceTypeRepository {
 
+    /** All space types. */
     fun findAll(): List<SpaceTypeRow> = transaction {
         SpaceTypesTable.selectAll()
             .map { it.toSpaceTypeRow() }
     }
 
+    /** Space type by id, or null. */
     fun findById(spaceTypeId: Int): SpaceTypeRow? = transaction {
         SpaceTypesTable.selectAll().where { SpaceTypesTable.spaceTypeId eq spaceTypeId }
             .singleOrNull()

@@ -2,6 +2,7 @@ import { useStaffAuth } from '../context/StaffAuthContext'
 import './CabinetPage.css'
 import './StaffHomePage.css'
 
+/** Staff dashboard: links to cabinet, staff, spaces, tariffs, bookings, settings. */
 export default function StaffHomePage() {
   const { staffUser } = useStaffAuth()
 

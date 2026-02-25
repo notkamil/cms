@@ -192,6 +192,7 @@ const DEFAULT_SETTINGS: BookingSettings = {
   cancelBeforeHours: 2,
 }
 
+/** Member bookings timeline by date and space; create/cancel booking modals. */
 export default function BookingsPage() {
   const [settings, setSettings] = useState<BookingSettings>(DEFAULT_SETTINGS)
   const [spaces, setSpaces] = useState<Space[]>([])

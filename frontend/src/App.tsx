@@ -23,18 +23,21 @@ import MyBookingsPage from './pages/MyBookingsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import './App.css'
 
+/** Renders staff home if logged in, else staff login page. */
 function StaffGate() {
   const { staffUser } = useStaffAuth()
   if (staffUser) return <StaffHomePage />
   return <StaffLoginPage />
 }
 
+/** Redirects to /staff if staff not logged in; otherwise renders children. */
 function StaffRequireAuth({ children }: { children: React.ReactNode }) {
   const { staffUser } = useStaffAuth()
   if (!staffUser) return <Navigate to="/staff" replace />
   return <>{children}</>
 }
 
+/** Root app: AuthProvider, StaffAuthProvider, router with member cabinet and staff routes. */
 function App() {
   return (
     <AuthProvider>

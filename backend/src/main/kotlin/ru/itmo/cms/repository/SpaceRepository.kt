@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.time.LocalDateTime
 
+/** Single space row with type name and status (available, occupied, maintenance, disabled). */
 data class SpaceRow(
     val spaceId: Int,
     val spaceTypeId: Int,
@@ -41,8 +42,10 @@ private fun ResultRow.toSpaceRow(typeName: String) = SpaceRow(
     description = this[SpacesTable.description]
 )
 
+/** Data access for spaces (rooms/zones) and their status sync from bookings. */
 object SpaceRepository {
 
+    /** All spaces with type name. */
     fun findAll(): List<SpaceRow> = transaction {
         val typeNames = SpaceTypeRepository.findAll().associate { it.spaceTypeId to it.name }
         SpacesTable.selectAll().map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
@@ -64,6 +67,7 @@ object SpaceRepository {
             .map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
     }
 
+    /** Single space by id, or null. */
     fun findById(spaceId: Int): SpaceRow? = transaction {
         val row = SpacesTable.selectAll().where { SpacesTable.spaceId eq spaceId }.singleOrNull() ?: return@transaction null
         val typeName = SpaceTypeRepository.findById(row[SpacesTable.spaceTypeId])!!.name
@@ -76,6 +80,7 @@ object SpaceRepository {
         row.toSpaceRow(typeName)
     }
 
+    /** Create a new space; returns the created row. */
     fun create(
         name: String,
         spaceTypeId: Int,
@@ -99,6 +104,7 @@ object SpaceRepository {
         SpaceRow(spaceId = id, spaceTypeId = spaceTypeId, typeName = typeName, name = n, floor = floor, capacity = capacity, status = statusEnum.name, description = d)
     }
 
+    /** Update space by id; null params left unchanged. Returns updated row or null. */
     fun update(
         spaceId: Int,
         name: String? = null,

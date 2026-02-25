@@ -2,6 +2,7 @@ package ru.itmo.cms.models
 
 import kotlinx.serialization.Serializable
 
+/** Request body for POST /api/auth/register. */
 @Serializable
 data class RegisterRequest(
     val name: String,
@@ -10,12 +11,14 @@ data class RegisterRequest(
     val phone: String
 )
 
+/** Request body for POST /api/auth/login. */
 @Serializable
 data class LoginRequest(
     val email: String,
     val password: String
 )
 
+/** Member profile in API responses (no password). */
 @Serializable
 data class MemberResponse(
     val id: Int,
@@ -26,12 +29,14 @@ data class MemberResponse(
     val registeredAt: String
 )
 
+/** Response for register/login: JWT and member. */
 @Serializable
 data class AuthResponse(
     val token: String,
     val member: MemberResponse
 )
 
+/** Request body for PATCH /api/me (profile update). */
 @Serializable
 data class PatchMeRequest(
     val name: String? = null,
@@ -46,6 +51,7 @@ data class PutPasswordRequest(
     val newPassword: String
 )
 
+/** Request body for POST /api/transactions/deposit. */
 @Serializable
 data class DepositRequest(
     val amount: String

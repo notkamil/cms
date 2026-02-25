@@ -73,6 +73,7 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+/** Member subscriptions: current, archived, and new subscription form/modal. */
 export default function CabinetSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionsData | null>(null)
   const [availableTariffs, setAvailableTariffs] = useState<AvailableTariff[]>([])

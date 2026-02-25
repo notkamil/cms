@@ -16,6 +16,7 @@ interface SpaceRef {
   amenities?: string[]
 }
 
+/** Member view of spaces reference (name, type, floor, capacity, amenities). */
 export default function CabinetSpacesPage() {
   const outletContext = useOutletContext<{ theme?: Theme }>()
   const theme = outletContext?.theme ?? 'light'

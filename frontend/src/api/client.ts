@@ -12,14 +12,17 @@ if (!baseUrl) {
 const STORAGE_TOKEN_KEY = 'token'
 export const STORAGE_STAFF_TOKEN_KEY = 'staffToken'
 
+/** Returns the current member JWT from localStorage, or null. */
 function getToken(): string | null {
   return localStorage.getItem(STORAGE_TOKEN_KEY)
 }
 
+/** Returns the current staff JWT from localStorage, or null. */
 function getStaffToken(): string | null {
   return localStorage.getItem(STORAGE_STAFF_TOKEN_KEY)
 }
 
+/** Builds request headers: optional Content-Type, and Authorization Bearer when token present. */
 function buildHeaders(includeBody = false, useStaffToken = false): HeadersInit {
   const headers: Record<string, string> = {}
   if (includeBody) {
@@ -32,12 +35,14 @@ function buildHeaders(includeBody = false, useStaffToken = false): HeadersInit {
   return headers
 }
 
+/** Resolves full API URL for a path (uses VITE_API_URL, normalizes trailing slash). */
 function buildUrl(path: string): string {
   const base = baseUrl?.replace(/\/$/, '') ?? ''
   const p = path.startsWith('/') ? path : `/${path}`
   return `${base}${p}`
 }
 
+/** Maps HTTP status to Russian message when backend does not return error body. */
 function statusTextToRussian(status: number, fallback: string): string {
   if (fallback && /[а-яА-ЯёЁ]/.test(fallback)) return fallback
   const map: Record<number, string> = {
@@ -53,6 +58,7 @@ function statusTextToRussian(status: number, fallback: string): string {
   return map[status] ?? 'Произошла ошибка'
 }
 
+/** Thrown on non-2xx API response. message is shown to user (Russian if from status). */
 export class ApiError extends Error {
   status: number
   body?: unknown

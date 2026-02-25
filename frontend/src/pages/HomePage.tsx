@@ -40,6 +40,7 @@ function MoonIcon({ size = 24 }: { size?: number }) {
   )
 }
 
+/** Public home: login/register forms and mode switch. */
 export default function HomePage() {
   const navigate = useNavigate()
   const { user, login, register, logout } = useAuth()

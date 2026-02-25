@@ -55,6 +55,7 @@ function validatePrice(value: string): string | null {
   return null
 }
 
+/** Staff tariffs CRUD and tariff–space assignment matrix. */
 export default function StaffTariffsPage() {
   const [tariffs, setTariffs] = useState<Tariff[]>([])
   const [spaces, setSpaces] = useState<SpaceSummary[]>([])

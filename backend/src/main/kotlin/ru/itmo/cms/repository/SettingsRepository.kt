@@ -63,12 +63,15 @@ private fun parseTime(s: String): LocalTime {
 private fun formatTime(t: LocalTime): String =
     "${t.hour.toString().padStart(2, '0')}:${t.minute.toString().padStart(2, '0')}"
 
+/** System and working-hours settings used for booking rules and UI. */
 object SettingsRepository {
 
+    /** Raw setting value by key, or null. */
     fun get(key: String): String? = transaction {
         SystemSettingsTable.selectAll().where { SystemSettingsTable.key eq key }.firstOrNull()?.get(SystemSettingsTable.value)
     }
 
+    /** Insert or overwrite a single key-value setting. */
     fun set(key: String, value: String) = transaction {
         SystemSettingsTable.insert {
             it[SystemSettingsTable.key] = key
@@ -76,6 +79,7 @@ object SettingsRepository {
         }
     }
 
+    /** Set value for key; insert if missing, update if present. */
     fun setOrUpdate(key: String, value: String) = transaction {
         val existing = SystemSettingsTable.selectAll().where { SystemSettingsTable.key eq key }.firstOrNull()
         if (existing != null) {
@@ -90,10 +94,12 @@ object SettingsRepository {
         }
     }
 
+    /** All key-value pairs from system_settings table. */
     fun getAllSettings(): Map<String, String> = transaction {
         SystemSettingsTable.selectAll().associate { it[SystemSettingsTable.key] to it[SystemSettingsTable.value] }
     }
 
+    /** Parsed app settings (timezone, slot, limits, working hours by day) for booking logic and UI. */
     fun getAppSettings(): AppSettings = transaction {
         val map = getAllSettings()
         val workingHours24_7 = (map[SettingsKeys.WORKING_HOURS_24_7] ?: SettingsDefaults.WORKING_HOURS_24_7).lowercase() == "true"
@@ -128,6 +134,7 @@ object SettingsRepository {
         )
     }
 
+    /** Working hours rows for days 1–7 (for staff settings UI). */
     fun listWorkingHours(): List<WorkingHoursRow> = transaction {
         WorkingHoursTable.selectAll().map { row ->
             WorkingHoursRow(
@@ -138,6 +145,7 @@ object SettingsRepository {
         }.sortedBy { it.dayOfWeek }
     }
 
+    /** Replace all working hours with the given rows (day 1–7). */
     fun saveWorkingHours(rows: List<WorkingHoursRow>) = transaction {
         WorkingHoursTable.deleteWhere { WorkingHoursTable.dayOfWeek greater 0 }
         rows.forEach { r ->

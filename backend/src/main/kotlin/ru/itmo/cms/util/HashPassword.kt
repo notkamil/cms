@@ -3,9 +3,9 @@ package ru.itmo.cms.util
 import at.favre.lib.crypto.bcrypt.BCrypt
 
 /**
- * Печатает BCrypt-хеш пароля (cost 12, как в приложении).
- * Запуск: ./gradlew hashPassword -Ppassword=твой_пароль
- * Или: ./gradlew hashPassword  (по умолчанию пароль "changeme")
+ * Prints BCrypt hash of password (cost 12, same as in app).
+ * Run: ./gradlew hashPassword -Ppassword=your_password
+ * Or: ./gradlew hashPassword (default password "changeme")
  */
 fun main(args: Array<String>) {
     val password = args.getOrNull(0) ?: "changeme"

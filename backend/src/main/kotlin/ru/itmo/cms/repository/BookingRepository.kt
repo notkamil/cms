@@ -35,6 +35,7 @@ data class BookingTimelineRow(
     val isParticipant: Boolean
 )
 
+/** Data access and business logic for bookings: create, cancel, timeline, participants, fix-subscription. */
 object BookingRepository {
 
     /** Mark completed: status=confirmed and end_time < now → completed. Called from scheduler. */
@@ -494,6 +495,7 @@ object BookingRepository {
         }
     }
 
+    /** Single booking by id (no creator/participant flags). Use for member or staff lookup. */
     fun findById(bookingId: Int): BookingTimelineRow? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction null
         val space = SpaceRepository.findById(row[BookingsTable.spaceId]) ?: return@transaction null
@@ -542,6 +544,7 @@ object BookingRepository {
         null
     }
 
+    /** Replace participants list (creator only; confirmed, not started). */
     fun updateParticipants(bookingId: Int, participantMemberIds: List<Int>, creatorId: Int) = transaction {
         BookingParticipantsTable.deleteWhere { BookingParticipantsTable.bookingId eq bookingId }
         participantMemberIds.distinct().filter { it != creatorId }.forEach { pid ->

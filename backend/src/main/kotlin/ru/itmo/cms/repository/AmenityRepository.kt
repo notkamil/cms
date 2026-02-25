@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 
+/** Single amenity row (e.g. projector, whiteboard). */
 data class AmenityRow(
     val amenityId: Int,
     val name: String,
@@ -21,18 +22,22 @@ private fun ResultRow.toAmenityRow() = AmenityRow(
     description = this[AmenitiesTable.description]
 )
 
+/** Data access for amenities and their link to spaces (space_amenities matrix). */
 object AmenityRepository {
 
+    /** All amenities. */
     fun findAll(): List<AmenityRow> = transaction {
         AmenitiesTable.selectAll().map { it.toAmenityRow() }
     }
 
+    /** Amenity by id, or null. */
     fun findById(amenityId: Int): AmenityRow? = transaction {
         AmenitiesTable.selectAll().where { AmenitiesTable.amenityId eq amenityId }
             .singleOrNull()
             ?.toAmenityRow()
     }
 
+    /** Amenity by name (trimmed), or null. */
     fun findByName(name: String): AmenityRow? = transaction {
         AmenitiesTable.selectAll().where { AmenitiesTable.name eq name.trim() }
             .singleOrNull()
@@ -58,6 +63,7 @@ object AmenityRepository {
         aids.map { byId[it] ?: "" }.filter { it.isNotBlank() }
     }
 
+    /** Create a new amenity; returns the created row. */
     fun create(name: String, description: String): AmenityRow = transaction {
         val n = name.trim()
         val d = description.trim()

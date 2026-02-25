@@ -43,6 +43,7 @@ function formatRemainingMinutes(minutes: number): string {
   return `${h}:${String(m).padStart(2, '0')}`
 }
 
+/** Staff list of all subscriptions; cancel with optional refund. */
 export default function StaffSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<StaffSubscription[]>([])
   const [loading, setLoading] = useState(true)

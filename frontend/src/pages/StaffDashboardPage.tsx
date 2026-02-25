@@ -4,6 +4,7 @@ import { useStaffAuth } from '../context/StaffAuthContext'
 import './CabinetPage.css'
 import './StaffCabinetPage.css'
 
+/** Staff dashboard: profile summary and links to edit/password modals. */
 export default function StaffDashboardPage() {
   const { staffUser } = useStaffAuth()
   const [editModalOpen, setEditModalOpen] = useState(false)

@@ -68,6 +68,7 @@ function paymentLabel(type: string): string {
 
 const DEFAULT_CANCEL_BEFORE_HOURS = 2
 
+/** Member list of current and archived bookings; edit participants, cancel. */
 export default function MyBookingsPage() {
   const [cancelBeforeHours, setCancelBeforeHours] = useState(DEFAULT_CANCEL_BEFORE_HOURS)
   const [loading, setLoading] = useState(true)

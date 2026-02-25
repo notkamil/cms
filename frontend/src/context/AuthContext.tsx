@@ -8,7 +8,12 @@ import {
 } from 'react'
 import { post, ApiError, STORAGE_TOKEN_KEY } from '../api/client'
 
-/** Matches backend MemberResponse */
+/**
+ * Member (coworking participant) auth: login, register, logout, profile in context and localStorage.
+ * Use AuthProvider at root and useAuth() in children.
+ */
+
+/** Logged-in member; matches backend MemberResponse. */
 export interface User {
   id: number
   name: string
@@ -54,6 +59,7 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
+/** Provides member auth state (user, token, login, register, logout, updateUser). */
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(readStoredUser)
   const [token, setToken] = useState<string | null>(readStoredToken)
@@ -102,6 +108,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+/** Hook to access member auth (user, token, login, register, logout, updateUser). Must be used inside AuthProvider. */
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
   if (!ctx) {

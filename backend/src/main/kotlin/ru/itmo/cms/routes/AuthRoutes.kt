@@ -58,6 +58,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.*
 
+/**
+ * Registers all member-facing API routes: auth (register/login), profile (me, password),
+ * settings, subscriptions, bookings, deposit. Uses JWT auth with audience "cms-frontend".
+ */
 fun Application.configureAuthRoutes() {
     val jwtConfig = environment.config.config("jwt")
     val secret = jwtConfig.property("secret").getString()

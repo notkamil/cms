@@ -25,6 +25,7 @@ interface TransactionItem {
 
 type Theme = 'light' | 'dark'
 
+/** Member profile: balance, deposit, edit profile, change password. */
 export default function CabinetPage() {
   const navigate = useNavigate()
   const { user, token, updateUser } = useAuth()

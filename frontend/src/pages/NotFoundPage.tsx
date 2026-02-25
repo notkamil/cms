@@ -61,6 +61,7 @@ function Digit0({ colorClass }: { colorClass: string }) {
   )
 }
 
+/** 404 page with theme toggle and digit-style layout. */
 export default function NotFoundPage() {
   const [theme, setTheme] = useState<Theme>(readStoredTheme)
 

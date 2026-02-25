@@ -29,6 +29,11 @@ import ru.itmo.cms.repository.SettingsRepository
 import ru.itmo.cms.routes.configureAuthRoutes
 import ru.itmo.cms.routes.configureStaffRoutes
 
+/**
+ * Main Ktor application module: database connection, JWT auth (member + staff),
+ * CORS, JSON, route configuration, and a background job for completed bookings,
+ * expired subscriptions, and space status sync (every 60 seconds).
+ */
 fun Application.module() {
     val dbConfig = environment.config.config("database")
     val jdbcUrl = dbConfig.property("url").getString()

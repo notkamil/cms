@@ -42,6 +42,7 @@ interface StaffLayoutProps {
   children?: ReactNode
 }
 
+/** Staff area layout: sidebar nav, theme toggle, logout; wraps staff routes. */
 export function StaffLayout({ children }: StaffLayoutProps) {
   const { staffUser, staffLogout } = useStaffAuth()
   const [theme, setTheme] = useState<Theme>(readStoredTheme)

@@ -156,6 +156,7 @@ const DEFAULT_SETTINGS: StaffSettings = {
   workingHours: [],
 }
 
+/** Staff bookings timeline by date; view/cancel/edit participants modals. */
 export default function StaffBookingsPage() {
   const [settings, setSettings] = useState<StaffSettings>(DEFAULT_SETTINGS)
   const [spaces, setSpaces] = useState<Space[]>([])

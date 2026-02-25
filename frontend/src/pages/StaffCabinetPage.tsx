@@ -5,6 +5,7 @@ import { patch, put } from '../api/client'
 import './CabinetPage.css'
 import './StaffCabinetPage.css'
 
+/** Staff profile: edit self, change password. */
 export default function StaffCabinetPage() {
   const { staffUser, updateStaffUser } = useStaffAuth()
   const [editModalOpen, setEditModalOpen] = useState(false)

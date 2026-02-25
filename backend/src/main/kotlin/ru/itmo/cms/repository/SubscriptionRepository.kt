@@ -13,6 +13,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+/** Subscription row for a member (tariff name resolved). */
 data class SubscriptionRow(
     val subscriptionId: Int,
     val memberId: Int,
@@ -49,6 +50,7 @@ fun markExpiredSubscriptions(): Unit = transaction {
     }
 }
 
+/** Data access and business logic for subscriptions (create, cancel, payment, expiry). */
 object SubscriptionRepository {
 
     /** Subscription status or null if not found. */
@@ -56,6 +58,7 @@ object SubscriptionRepository {
         SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull()?.get(SubscriptionsTable.status)
     }
 
+    /** All subscriptions for a member (any status). */
     fun findByMemberId(memberId: Int): List<SubscriptionRow> = transaction {
         val tariffsById = TariffRepository.findAll().associateBy { it.tariffId }
         SubscriptionsTable.selectAll()
@@ -76,6 +79,7 @@ object SubscriptionRepository {
             }
     }
 
+    /** Create subscription without payment (e.g. manual creation). Returns new SubscriptionRow. */
     fun create(
         memberId: Int,
         tariffId: Int,

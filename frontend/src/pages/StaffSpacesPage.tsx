@@ -42,6 +42,7 @@ interface Space {
 type ModalKind = 'add' | 'edit' | 'delete' | null
 type TypeModalKind = 'add' | 'edit' | 'delete' | null
 
+/** Staff spaces and space types: CRUD, type–space matrix. */
 export default function StaffSpacesPage() {
   const [list, setList] = useState<Space[]>([])
   const [types, setTypes] = useState<SpaceType[]>([])

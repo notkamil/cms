@@ -38,6 +38,7 @@ function MoonIcon({ size = 24 }: { size?: number }) {
   )
 }
 
+/** Member cabinet layout: nav (profile, subscriptions, spaces, bookings), theme toggle, logout; redirects if not logged in. */
 export default function CabinetLayout() {
   const navigate = useNavigate()
   const { token, logout } = useAuth()

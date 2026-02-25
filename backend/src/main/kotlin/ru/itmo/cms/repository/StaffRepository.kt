@@ -12,6 +12,7 @@ import ru.itmo.cms.util.normalizeEmail
 import ru.itmo.cms.util.normalizePhone
 import java.time.LocalDateTime
 
+/** In-memory representation of a single row from the staff table. */
 data class StaffRow(
     val staffId: Int,
     val name: String,
@@ -32,27 +33,31 @@ fun ResultRow.toStaffRow() = StaffRow(
     passwordHash = this[StaffTable.passwordHash]
 )
 
+/** Data access and business logic for staff (employees with roles: staff, admin, superadmin). */
 object StaffRepository {
 
+    /** Returns staff by email (trimmed, lowercased), or null. */
     fun findByEmail(email: String): StaffRow? = transaction {
         StaffTable.selectAll().where { StaffTable.email eq email.trim().lowercase() }
             .singleOrNull()
             ?.toStaffRow()
     }
 
+    /** Returns staff by id, or null. */
     fun findById(staffId: Int): StaffRow? = transaction {
         StaffTable.selectAll().where { StaffTable.staffId eq staffId }
             .singleOrNull()
             ?.toStaffRow()
     }
 
+    /** Returns all staff rows (any role). */
     fun findAll(): List<StaffRow> = transaction {
         StaffTable.selectAll().map { it.toStaffRow() }
     }
 
     /**
-     * Создаёт первого суперадмина при первом запуске, если в БД ещё нет ни одного с ролью superadmin.
-     * Данные: email admin@admin.admin, имя Администратор, пароль admin. Дальше пользователь меняет в UI.
+     * Creates the first superadmin on first run if no staff with role superadmin exists.
+     * Default: email admin@admin.admin, name "Администратор", password "admin". Change via UI after login.
      */
     fun ensureBootstrapSuperadmin(): Unit = transaction {
         if (StaffTable.selectAll().where { StaffTable.role eq StaffRole.superadmin }.firstOrNull() != null) return@transaction

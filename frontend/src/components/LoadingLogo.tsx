@@ -40,6 +40,7 @@ export interface LoadingLogoProps {
   intervalMs?: number
 }
 
+/** Animated 2x2 logo used as loading indicator (smooth or jump variant). */
 export function LoadingLogo({ theme, size = 64, variant = 'smooth', intervalMs = 400 }: LoadingLogoProps) {
   const steps = STEPS[variant]
   const [step, setStep] = useState(0)

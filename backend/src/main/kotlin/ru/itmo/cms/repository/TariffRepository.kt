@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.math.BigDecimal
 
+/** Single tariff row (fixed, package, or hourly subscription type). */
 data class TariffRow(
     val tariffId: Int,
     val name: String,
@@ -30,18 +31,22 @@ private fun ResultRow.toTariffRow() = TariffRow(
     isActive = this[TariffsTable.isActive]
 )
 
+/** Data access for tariffs (subscription plans) and subscription counts. */
 object TariffRepository {
 
+    /** All tariffs. */
     fun findAll(): List<TariffRow> = transaction {
         TariffsTable.selectAll().map { it.toTariffRow() }
     }
 
+    /** Tariff by id, or null. */
     fun findById(tariffId: Int): TariffRow? = transaction {
         TariffsTable.selectAll().where { TariffsTable.tariffId eq tariffId }
             .singleOrNull()
             ?.toTariffRow()
     }
 
+    /** Tariff by name (trimmed), or null. */
     fun findByName(name: String): TariffRow? = transaction {
         TariffsTable.selectAll().where { TariffsTable.name eq name.trim() }
             .singleOrNull()
@@ -60,6 +65,7 @@ object TariffRepository {
             .toList().size
     }
 
+    /** Create a new tariff; returns the created row. */
     fun create(
         name: String,
         type: TariffType,
@@ -108,26 +114,31 @@ object TariffRepository {
         findById(tariffId)
     }
 
+    /** Delete tariff by id. Returns false if any subscriptions reference it. */
     fun delete(tariffId: Int): Boolean = transaction {
         if (countSubscriptions(tariffId) > 0) return@transaction false
         TariffSpacesTable.deleteWhere { TariffSpacesTable.tariffId eq tariffId }
         TariffsTable.deleteWhere { TariffsTable.tariffId eq tariffId } > 0
     }
 
+    /** All (tariffId, spaceId) pairs for tariff–space assignment matrix. */
     fun getAllAssignments(): List<Pair<Int, Int>> = transaction {
         TariffSpacesTable.selectAll().map { it[TariffSpacesTable.tariffId] to it[TariffSpacesTable.spaceId] }
     }
 
+    /** Space ids assigned to this tariff (for fixed-tariff space choice). */
     fun getSpaceIdsByTariffId(tariffId: Int): List<Int> = transaction {
         TariffSpacesTable.selectAll().where { TariffSpacesTable.tariffId eq tariffId }
             .map { it[TariffSpacesTable.spaceId] }
     }
 
+    /** Tariff ids that include this space in their assignment. */
     fun getTariffIdsBySpaceId(spaceId: Int): List<Int> = transaction {
         TariffSpacesTable.selectAll().where { TariffSpacesTable.spaceId eq spaceId }
             .map { it[TariffSpacesTable.tariffId] }
     }
 
+    /** Replace tariff–space assignments with the given list of (tariffId, spaceId). */
     fun setAssignments(pairs: List<Pair<Int, Int>>): Unit = transaction {
         val current = getAllAssignments().toSet()
         val newSet = pairs.toSet()

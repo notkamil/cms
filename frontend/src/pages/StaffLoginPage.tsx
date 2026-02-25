@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStaffAuth, StaffApiError } from '../context/StaffAuthContext'
 import './StaffLoginPage.css'
 
+/** Staff login form; redirects to staff home on success. */
 export default function StaffLoginPage() {
   const { staffLogin } = useStaffAuth()
   const [email, setEmail] = useState('')

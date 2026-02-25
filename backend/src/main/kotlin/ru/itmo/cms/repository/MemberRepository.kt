@@ -13,6 +13,7 @@ import ru.itmo.cms.util.normalizeEmail
 import ru.itmo.cms.util.normalizePhone
 import java.time.LocalDateTime
 
+/** In-memory representation of a single row from the members table. */
 data class MemberRow(
     val memberId: Int,
     val name: String,
@@ -23,6 +24,7 @@ data class MemberRow(
     val passwordHash: String
 )
 
+/** Single row from the transactions table (balance history). */
 data class TransactionRow(
     val transactionId: Int,
     val memberId: Int,
@@ -42,26 +44,31 @@ fun ResultRow.toMemberRow() = MemberRow(
     passwordHash = this[MembersTable.passwordHash]
 )
 
+/** Data access and business logic for members (coworking participants) and their transactions. */
 object MemberRepository {
 
+    /** Returns the member by id, or null if not found. */
     fun findById(memberId: Int): MemberRow? = transaction {
         MembersTable.selectAll().where { MembersTable.memberId eq memberId }
             .singleOrNull()
             ?.toMemberRow()
     }
 
+    /** Returns the member by normalized email, or null. */
     fun findByEmail(email: String): MemberRow? = transaction {
         MembersTable.selectAll().where { MembersTable.email eq email }
             .singleOrNull()
             ?.toMemberRow()
     }
 
+    /** Returns the member by E.164 phone, or null. */
     fun findByPhone(phone: String): MemberRow? = transaction {
         MembersTable.selectAll().where { MembersTable.phone eq phone }
             .singleOrNull()
             ?.toMemberRow()
     }
 
+    /** Updates one or more profile fields by id; null params are left unchanged. Returns updated row or null. */
     fun updateProfile(
         memberId: Int,
         name: String? = null,
@@ -81,6 +88,7 @@ object MemberRepository {
 
     /**
      * Verifies current password, updates profile fields, and writes audit in a single transaction.
+     * Use this for member self-update from the cabinet.
      * @throws ProfileUpdateException.InvalidPassword if currentPassword is wrong
      * @throws ProfileUpdateException.EmailAlreadyUsed if new email is taken by another member
      * @throws ProfileUpdateException.PhoneAlreadyUsed if new phone is taken by another member
@@ -221,6 +229,7 @@ object MemberRepository {
             .map { it.toMemberRow() }
     }
 
+    /** Create a new member; returns the created row (including hashed password). */
     fun create(name: String, email: String, phone: String, passwordHash: String): MemberRow = transaction {
         val now = LocalDateTime.now()
         val id = MembersTable.insert {

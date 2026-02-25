@@ -62,6 +62,7 @@ function normalizeTimezoneForSelect(tz: string): string {
   return known[normalized] ?? 'UTC'
 }
 
+/** Staff system settings: working hours, timezone, slot, booking limits. */
 export default function StaffSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

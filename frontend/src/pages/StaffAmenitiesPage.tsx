@@ -26,6 +26,7 @@ function assignmentKey(spaceId: number, amenityId: number): string {
   return `${spaceId}-${amenityId}`
 }
 
+/** Staff amenities CRUD and amenity–space assignment matrix. */
 export default function StaffAmenitiesPage() {
   const [amenities, setAmenities] = useState<Amenity[]>([])
   const [spaces, setSpaces] = useState<SpaceSummary[]>([])

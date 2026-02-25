@@ -1,0 +1,32 @@
+@startuml lab4-3-sequence-booking-one-time
+participant "Участник" as U
+participant "Frontend" as F
+participant "Backend" as B
+participant "БД" as DB
+
+U -> F : Выбор пространства, даты, времени, тарифа
+F -> B : GET /api/me/settings
+B -> DB : Настройки (слоты, рабочие часы)
+DB --> B : Settings
+B --> F : slotMinutes, workingHours, ...
+F -> B : GET /api/me/spaces/list
+B -> DB : Список пространств
+DB --> B : Spaces
+B --> F : Список пространств
+F -> B : GET /api/me/tariffs/available (spaceId)
+B -> DB : Тарифы для пространства
+DB --> B : Tariffs
+B --> F : Почасовые тарифы
+F -> B : GET слоты по дате (или расчёт на фронте)
+F -> B : POST /api/me/bookings (one_time, tariffId)
+B -> B : Проверка слота, рабочих часов
+B -> DB : Проверка пересечений
+DB --> B : OK
+B -> DB : Тариф, расчёт суммы
+B -> DB : Баланс участника
+DB --> B : balance >= price
+B -> DB : INSERT Booking, OneOff; UPDATE balance; INSERT Transaction, TransactionOneOffs
+DB --> B : bookingId
+B --> F : 201 Created { id }
+F --> U : Бронирование создано
+@enduml

@@ -1,0 +1,23 @@
+@startuml lab4-4-sequence-booking-subscription
+participant "Участник" as U
+participant "Frontend" as F
+participant "Backend" as B
+participant "БД" as DB
+
+U -> F : Выбор пространства, даты, времени, подписки
+F -> B : GET /api/me/settings
+B --> F : Настройки
+F -> B : GET /api/me/subscriptions?spaceId=&forBooking=1
+B -> DB : Активные подписки участника по пространству
+DB --> B : Subscriptions (с остатком минут)
+B --> F : Текущие подписки
+F -> B : POST /api/me/bookings (subscription, subscriptionId)
+B -> DB : Проверка слота, рабочих часов и пересечений
+DB --> B : OK
+B -> DB : "Подписка: статус active, остаток минут >= длительности"
+DB --> B : OK
+B -> DB : "INSERT Booking, BookingSubscriptions; UPDATE remainingMinutes"
+DB --> B : bookingId
+B --> F : 201 Created { id }
+F --> U : Бронирование создано
+@enduml

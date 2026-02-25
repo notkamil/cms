@@ -5,3 +5,17 @@
 **Участники** регистрируются, пополняют баланс, оформляют подписки и бронируют места. **Сотрудники** (staff) управляют пространствами, тарифами, подписками, бронированиями и настройками (расписание, слоты, лимиты).
 
 **Стек:** backend — Kotlin, Ktor, PostgreSQL; frontend — React, TypeScript, Vite.
+
+---
+
+## Лабы
+
+1. [Спецификация](labs/lab1-specification.md)
+2. [Мокапы](labs/lab2-ui-mockups.pdf)
+3. Схема БД: [PDF](labs/lab3-erm-pdm.pdf), [DDL](db/ddl.sql)
+4. [Диаграммы](labs/lab4.md)
+5. [Этот репозиторий](./)
+6. [Docker](docker-compose.yml), [CI](.github/workflows/ci.yml)
+7. [Документация по интерфейсам и алгоритмам](labs/lab7.md)
+
+**Деплой:** http://188.124.50.54/

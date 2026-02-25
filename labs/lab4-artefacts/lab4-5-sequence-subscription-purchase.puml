@@ -1,0 +1,34 @@
+@startuml lab4-5-sequence-subscription-purchase
+participant "Участник" as U
+participant "Frontend" as F
+participant "Backend" as B
+participant "БД" as DB
+
+U -> F : Выбор тарифа, даты начала (и пространства для «Фикс»)
+F -> B : GET /api/me/tariffs/available
+B -> DB : Активные тарифы (не почасовые)
+DB --> B : Tariffs
+B --> F : Список тарифов
+F -> B : POST /api/me/subscriptions (tariffId, startDate, spaceId?)
+B -> DB : Тариф: активен, тип fixed/hourly/package
+DB --> B : Tariff
+B -> B : Расчёт endDate, remainingMinutes, цены
+alt Тариф «Фикс»
+  B -> DB : Проверка пересечений по пространству
+  DB --> B : OK
+end
+B -> DB : Баланс участника
+DB --> B : balance
+alt balance < price
+  B --> F : 400 Недостаточно средств
+  F --> U : Ошибка
+else balance >= price
+  B -> DB : INSERT Subscription; UPDATE balance -= price; INSERT Transaction, TransactionSubscriptions
+  alt Тариф «Фикс»
+    B -> DB : INSERT Booking (на период), BookingSubscriptions
+  end
+  DB --> B : subscriptionId
+  B --> F : 201 Created Subscription
+  F --> U : Подписка оформлена
+end
+@enduml

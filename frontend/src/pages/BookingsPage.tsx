@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import ru from 'date-fns/locale/ru'
+import { ru } from 'date-fns/locale/ru'
 import { get, post, patch, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
 import { formatPrice, formatAmount } from '../utils/formatPrice'
@@ -10,35 +10,52 @@ import './BookingsPage.css'
 
 registerLocale('ru', { ...ru, options: { weekStartsOn: 1 } })
 
-const COWORKING_TZ = 'Europe/Moscow'
 const PX_PER_MINUTE = 2
-const HOURS_START = 0
-const HOURS_END = 24
 const TICK_PADDING = 12
-const TRACK_WIDTH = (HOURS_END - HOURS_START) * 60 * PX_PER_MINUTE
-const TRACK_TOTAL_WIDTH = TRACK_WIDTH + 2 * TICK_PADDING
 
-/** Следующий день в формате YYYY-MM-DD (для границ дня в таймзоне коворкинга). */
-function nextDayStr(isoDate: string): string {
-  const d = new Date(isoDate + 'T12:00:00+03:00')
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
+/** Смещение таймзоны в мс в момент date (положительное = TZ впереди UTC). */
+function getTimezoneOffsetMs(date: Date, timeZone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'longOffset' }).formatToParts(date)
+    const part = parts.find((p) => p.type === 'timeZoneName' && p.value)
+    if (!part?.value) return 0
+    const m = part.value.match(/([+-])(\d{1,2}):?(\d{2})?/)
+    if (!m) return 0
+    const sign = m[1] === '+' ? 1 : -1
+    const h = parseInt(m[2], 10) || 0
+    const min = parseInt(m[3], 10) || 0
+    return sign * (h * 60 + min) * 60 * 1000
+  } catch {
+    return 0
+  }
 }
 
-/** Границы выбранного дня в Москве (мс). */
-function dayBoundsMs(selectedDate: string): { start: number; end: number } {
-  const start = new Date(selectedDate + 'T00:00:00+03:00').getTime()
-  const end = new Date(nextDayStr(selectedDate) + 'T00:00:00+03:00').getTime()
+/** Границы выбранного дня в таймзоне коворкинга (мс). */
+function dayBoundsMs(selectedDate: string, timeZone: string): { start: number; end: number } {
+  const noonUtc = new Date(selectedDate + 'T12:00:00.000Z').getTime()
+  const offsetMs = getTimezoneOffsetMs(new Date(noonUtc), timeZone)
+  const start = noonUtc - 12 * 60 * 60 * 1000 - offsetMs
+  const end = start + 24 * 60 * 60 * 1000
   return { start, end }
 }
 
-/** Сегмент бронирования, приходящийся на выбранный день: left (px), width (px), время начала/конца сегмента в минутах от полуночи (для подписи). */
+/** ISO день недели (1=Пн, 7=Вс) для даты YYYY-MM-DD. */
+function getDayOfWeek(isoDate: string): number {
+  const d = new Date(isoDate + 'T12:00:00')
+  const day = d.getDay()
+  return day === 0 ? 7 : day
+}
+
+/** Сегмент бронирования на выбранный день: left (px), width (px), startM/endM в минутах от начала рабочих часов дня. */
 function bookingSegmentOnDay(
   startTime: string,
   endTime: string,
-  selectedDate: string
+  selectedDate: string,
+  timeZone: string,
+  dayStartMinutes: number,
+  dayEndMinutes: number
 ): { leftPx: number; widthPx: number; startM: number; endM: number } | null {
-  const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate)
+  const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate, timeZone)
   const startMs = new Date(startTime).getTime()
   const endMs = new Date(endTime).getTime()
   const clipStartMs = Math.max(startMs, dayStartMs)
@@ -46,9 +63,12 @@ function bookingSegmentOnDay(
   if (clipStartMs >= clipEndMs) return null
   const startM = (clipStartMs - dayStartMs) / 60000
   const endM = (clipEndMs - dayStartMs) / 60000
-  const leftPx = TICK_PADDING + startM * PX_PER_MINUTE
-  const widthPx = Math.max(2, (endM - startM) * PX_PER_MINUTE)
-  return { leftPx, widthPx, startM, endM }
+  if (startM >= dayEndMinutes || endM <= dayStartMinutes) return null
+  const visibleStart = Math.max(startM, dayStartMinutes)
+  const visibleEnd = Math.min(endM, dayEndMinutes)
+  const leftPx = TICK_PADDING + (visibleStart - dayStartMinutes) * PX_PER_MINUTE
+  const widthPx = Math.max(2, (visibleEnd - visibleStart) * PX_PER_MINUTE)
+  return { leftPx, widthPx, startM: visibleStart, endM: visibleEnd }
 }
 
 interface Space {
@@ -98,6 +118,28 @@ interface Tariff {
   price: string
 }
 
+interface WorkingHoursDay {
+  dayOfWeek: number
+  openingTime: string
+  closingTime: string
+}
+
+interface BookingSettings {
+  timezone: string
+  workingHours24_7: boolean
+  workingHours: WorkingHoursDay[]
+  slotMinutes: number
+  maxBookingDaysAhead: number
+  minBookingMinutes: number
+  cancelBeforeHours: number
+}
+
+function parseTimeToMinutesFromMidnight(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map((s) => parseInt(s, 10))
+  if (Number.isNaN(h) || Number.isNaN(m)) return 0
+  return (h ?? 0) * 60 + (m ?? 0)
+}
+
 /** Минуты от полуночи по времени из ISO-строки (сервер отдаёт в таймзоне коворкинга). */
 function parseISOMinutes(iso: string | undefined): number {
   if (!iso || typeof iso !== 'string') return 0
@@ -110,13 +152,6 @@ function formatTime(minutesFromMidnight: number): string {
   const h = Math.floor(minutesFromMidnight / 60)
   const m = minutesFromMidnight % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
-
-/** Парсит "HH:mm" в минуты от полуночи. */
-function parseTimeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map((s) => parseInt(s, 10))
-  if (Number.isNaN(h) || Number.isNaN(m)) return 0
-  return (h ?? 0) * 60 + (m ?? 0)
 }
 
 /** ISO дата "YYYY-MM-DD" → "DD.MM.YYYY" */
@@ -136,18 +171,29 @@ function getBookingColor(b: Booking): string {
   return 'var(--booking-other, #757575)'
 }
 
-/** Отмена доступна только владельцу: активное бронирование, ещё не началось и не менее чем за 2 ч до начала. */
-function canCancelBooking(b: Booking): boolean {
+/** Отмена доступна: активное, владелец, ещё не началось и не менее чем за cancelBeforeHours до начала. */
+function canCancelBooking(b: Booking, cancelBeforeHours: number): boolean {
   if (b.status !== 'confirmed' || !b.isCreator) return false
   const now = Date.now()
   const start = new Date(b.startTime).getTime()
   const end = new Date(b.endTime).getTime()
   if (end <= now) return false
   if (start <= now) return false
-  return start - now >= 2 * 60 * 60 * 1000
+  return start - now >= cancelBeforeHours * 60 * 60 * 1000
+}
+
+const DEFAULT_SETTINGS: BookingSettings = {
+  timezone: 'Europe/Moscow',
+  workingHours24_7: false,
+  workingHours: [],
+  slotMinutes: 15,
+  maxBookingDaysAhead: 60,
+  minBookingMinutes: 60,
+  cancelBeforeHours: 2,
 }
 
 export default function BookingsPage() {
+  const [settings, setSettings] = useState<BookingSettings>(DEFAULT_SETTINGS)
   const [spaces, setSpaces] = useState<Space[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
@@ -187,8 +233,15 @@ export default function BookingsPage() {
   const [editError, setEditError] = useState<string | null>(null)
   const trackRef = useRef<HTMLDivElement>(null)
 
+  const dayOfWeek = getDayOfWeek(selectedDate)
+  const dayWh = settings.workingHours.find((w) => w.dayOfWeek === dayOfWeek)
+  const hoursStart = settings.workingHours24_7 ? 0 : (dayWh ? parseTimeToMinutesFromMidnight(dayWh.openingTime) : 9 * 60)
+  const hoursEnd = settings.workingHours24_7 ? 24 * 60 : (dayWh ? parseTimeToMinutesFromMidnight(dayWh.closingTime) : 21 * 60)
+  const trackMinutes = hoursEnd - hoursStart
+  const trackWidth = trackMinutes * PX_PER_MINUTE
+  const trackTotalWidth = trackWidth + 2 * TICK_PADDING
   const isToday = selectedDate === new Date().toISOString().slice(0, 10)
-  const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() - HOURS_START * 60 : null
+  const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() - hoursStart : null
 
   const loadSpaces = useCallback(() => {
     return get<Space[]>('/api/me/spaces')
@@ -206,19 +259,23 @@ export default function BookingsPage() {
     return get<Tariff[]>(`/api/me/tariffs/hourly${q}`)
   }, [])
 
+  const loadSettings = useCallback(() => get<BookingSettings>('/api/me/settings'), [])
+
   useEffect(() => {
     let cancelled = false
     loadingStartRef.current = Date.now()
     setLoadingElapsed(0)
     setLoading(true)
     Promise.all([
+      loadSettings(),
       loadSpaces(),
       loadBookings(selectedDate),
-      loadSubscriptions(), // без spaceId при первой загрузке
+      loadSubscriptions(),
       loadHourlyTariffs(),
     ])
-      .then(([spacesList, bookingsList, subs, tariffs]) => {
+      .then(([settingsData, spacesList, bookingsList, subs, tariffs]) => {
         if (!cancelled) {
+          setSettings(settingsData ?? DEFAULT_SETTINGS)
           setSpaces(spacesList)
           setBookings(bookingsList)
           setSubscriptions(subs)
@@ -237,7 +294,7 @@ export default function BookingsPage() {
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [selectedDate, loadSpaces, loadBookings, loadSubscriptions, loadHourlyTariffs])
+  }, [selectedDate, loadSettings, loadSpaces, loadBookings, loadSubscriptions, loadHourlyTariffs])
 
   useEffect(() => {
     if (!loading) return
@@ -283,14 +340,14 @@ export default function BookingsPage() {
     const el = e.currentTarget
     const rect = el.getBoundingClientRect()
     const x = e.clientX - rect.left - TICK_PADDING
-    const minutes = Math.floor(x / PX_PER_MINUTE) + HOURS_START * 60
-    const slot = Math.floor(minutes / 15) * 15
-    if (slot < 0 || slot >= (HOURS_END - HOURS_START) * 60) return
-    const startFromMidnight = slot + HOURS_START * 60
-    const minutesPerDay = (HOURS_END - HOURS_START) * 60
-    const defaultDurationMinutes = 60
+    const slotSize = settings.slotMinutes
+    const minutes = Math.floor(x / PX_PER_MINUTE) + hoursStart
+    const slot = Math.floor(minutes / slotSize) * slotSize
+    if (slot < hoursStart || slot >= hoursEnd) return
+    const startFromMidnight = slot
+    const defaultDurationMinutes = Math.max(settings.minBookingMinutes, slotSize)
     const rawEndMinutes = startFromMidnight + defaultDurationMinutes
-    const endSpansNextDay = rawEndMinutes >= minutesPerDay
+    const endSpansNextDay = rawEndMinutes >= 24 * 60
     const endDate = endSpansNextDay
       ? (() => {
           const d = new Date(selectedDate + 'T12:00:00')
@@ -298,7 +355,7 @@ export default function BookingsPage() {
           return d.toISOString().slice(0, 10)
         })()
       : selectedDate
-    const endMinutes = endSpansNextDay ? rawEndMinutes % minutesPerDay : rawEndMinutes
+    const endMinutes = endSpansNextDay ? rawEndMinutes % (24 * 60) : rawEndMinutes
     setCreateSlot({ spaceId, spaceName, startMinutes: slot })
     setCreateStartDate(selectedDate)
     setCreateEndDate(endDate)
@@ -359,8 +416,9 @@ export default function BookingsPage() {
   }
 
   const validateCreateTime = (): boolean => {
-    if (createStartMinutes % 15 !== 0 || createEndMinutes % 15 !== 0) {
-      setCreateTimeError('Время начала и окончания должны быть кратны 15 минутам (например, 10:00, 10:15, 10:30, 10:45).')
+    const slot = settings.slotMinutes
+    if (createStartMinutes % slot !== 0 || createEndMinutes % slot !== 0) {
+      setCreateTimeError(`Время начала и окончания должны быть кратны ${slot} минутам (например, 10:00, 10:${String(slot).padStart(2, '0')}).`)
       return false
     }
     const startStr = `${createStartDate}T${formatTime(createStartMinutes)}:00`
@@ -458,7 +516,7 @@ export default function BookingsPage() {
           <DatePicker
             id="bookings-date"
             selected={selectedDate ? new Date(selectedDate + 'T12:00:00') : null}
-            onChange={(d) => setSelectedDate(d ? d.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))}
+            onChange={(d: Date | null) => setSelectedDate(d ? d.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))}
             locale="ru"
             dateFormat="dd.MM.yyyy"
             className="cabinet-modal-input"
@@ -473,11 +531,14 @@ export default function BookingsPage() {
         </p>
       </div>
 
-      <div className="bookings-timeline-wrap">
+      <div
+        className="bookings-timeline-wrap"
+        style={{ ['--track-total-width' as string]: `${trackTotalWidth}px` }}
+      >
         <div className="bookings-time-row">
           <div className="bookings-time-corner" aria-hidden />
-          <div className="bookings-time-axis" style={{ width: TRACK_TOTAL_WIDTH, minWidth: TRACK_TOTAL_WIDTH }}>
-            {Array.from({ length: HOURS_END - HOURS_START + 1 }, (_, i) => (
+          <div className="bookings-time-axis" style={{ width: trackTotalWidth, minWidth: trackTotalWidth }}>
+            {Array.from({ length: Math.floor(trackMinutes / 60) + 1 }, (_, i) => (
               <div
                 key={`line-${i}`}
                 className="bookings-hour-line"
@@ -485,8 +546,8 @@ export default function BookingsPage() {
                 aria-hidden
               />
             ))}
-            {Array.from({ length: HOURS_END - HOURS_START + 1 }, (_, i) => HOURS_START + i).map((h) => (
-              <div key={h} className="bookings-time-tick" style={{ left: TICK_PADDING + (h - HOURS_START) * 60 * PX_PER_MINUTE }}>
+            {Array.from({ length: Math.floor(trackMinutes / 60) + 1 }, (_, i) => Math.floor(hoursStart / 60) + i).map((h) => (
+              <div key={h} className="bookings-time-tick" style={{ left: TICK_PADDING + (h * 60 - hoursStart) * PX_PER_MINUTE }}>
                 {h}:00
               </div>
             ))}
@@ -494,7 +555,7 @@ export default function BookingsPage() {
         </div>
         <div className="bookings-rows">
           {spaces.map((space) => {
-            const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate)
+            const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate, settings.timezone)
             const spaceBookings = bookings.filter(
               (b) =>
                 b.spaceId === space.id &&
@@ -516,14 +577,14 @@ export default function BookingsPage() {
                 <div
                   ref={trackRef}
                   className="bookings-track"
-                  style={{ width: TRACK_TOTAL_WIDTH, minWidth: TRACK_TOTAL_WIDTH }}
+                  style={{ width: trackTotalWidth, minWidth: trackTotalWidth }}
                   onClick={(e) => {
                     const target = e.target as HTMLElement
                     if (target.closest('.booking-block')) return
                     handleTrackClick(e, space.id, space.name)
                   }}
                 >
-                  {Array.from({ length: HOURS_END - HOURS_START + 1 }, (_, i) => (
+                  {Array.from({ length: Math.floor(trackMinutes / 60) + 1 }, (_, i) => (
                     <div
                       key={i}
                       className="bookings-hour-line"
@@ -532,7 +593,7 @@ export default function BookingsPage() {
                     />
                   ))}
                   {spaceBookings.map((b) => {
-                    const seg = bookingSegmentOnDay(b.startTime, b.endTime, selectedDate)
+                    const seg = bookingSegmentOnDay(b.startTime, b.endTime, selectedDate, settings.timezone, hoursStart, hoursEnd)
                     if (!seg) return null
                     const { leftPx, widthPx, startM, endM } = seg
                     const isShort = widthPx < 70
@@ -569,7 +630,7 @@ export default function BookingsPage() {
                       </div>
                     )
                   })}
-                  {isToday && nowMinutes != null && nowMinutes >= 0 && nowMinutes < (HOURS_END - HOURS_START) * 60 && (
+                  {isToday && nowMinutes != null && nowMinutes >= 0 && nowMinutes < trackMinutes && (
                     <div
                       className="bookings-now-line"
                       style={{ left: TICK_PADDING + nowMinutes * PX_PER_MINUTE }}
@@ -646,7 +707,7 @@ export default function BookingsPage() {
                       Изменить участников
                     </button>
                   )}
-                {canCancelBooking(viewBooking) && (
+                {canCancelBooking(viewBooking, settings.cancelBeforeHours) && (
                   <button
                     type="button"
                     className="cabinet-password-btn"
@@ -753,7 +814,7 @@ export default function BookingsPage() {
                 <label className="cabinet-modal-label">Дата начала</label>
                 <DatePicker
                   selected={createStartDate ? new Date(createStartDate + 'T12:00:00') : null}
-                  onChange={(d) => setCreateStartDate(d ? d.toISOString().slice(0, 10) : '')}
+                  onChange={(d: Date | null) => setCreateStartDate(d ? d.toISOString().slice(0, 10) : '')}
                   locale="ru"
                   dateFormat="dd.MM.yyyy"
                   className="cabinet-modal-input"
@@ -789,7 +850,7 @@ export default function BookingsPage() {
                     className="cabinet-modal-input"
                     aria-label="Минуты начала"
                   >
-                    {[0, 15, 30, 45].map((m) => (
+                    {Array.from({ length: 60 / settings.slotMinutes }, (_, i) => i * settings.slotMinutes).map((m) => (
                       <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
                     ))}
                   </select>
@@ -799,7 +860,7 @@ export default function BookingsPage() {
                 <label className="cabinet-modal-label">Дата окончания</label>
                 <DatePicker
                   selected={createEndDate ? new Date(createEndDate + 'T12:00:00') : null}
-                  onChange={(d) => setCreateEndDate(d ? d.toISOString().slice(0, 10) : '')}
+                  onChange={(d: Date | null) => setCreateEndDate(d ? d.toISOString().slice(0, 10) : '')}
                   locale="ru"
                   dateFormat="dd.MM.yyyy"
                   className="cabinet-modal-input"
@@ -835,7 +896,7 @@ export default function BookingsPage() {
                     className="cabinet-modal-input"
                     aria-label="Минуты окончания"
                   >
-                    {[0, 15, 30, 45].map((m) => (
+                    {Array.from({ length: 60 / settings.slotMinutes }, (_, i) => i * settings.slotMinutes).map((m) => (
                       <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
                     ))}
                   </select>

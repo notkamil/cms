@@ -283,7 +283,7 @@ export default function StaffStaffPage() {
       </div>
 
       {loading && loadingElapsed >= 1 ? (
-        <LoadingLogo />
+        <LoadingLogo theme="light" />
       ) : (
         <>
           <table className="cabinet-table staff-staff-table">

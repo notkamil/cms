@@ -217,3 +217,78 @@
   font-size: 0.8rem;
   color: var(--cabinet-text-muted, #888);
 }
+
+/* Общие настройки (StaffSettingsPage) */
+.staff-settings-form {
+  max-width: 32rem;
+}
+.staff-settings-section {
+  margin-bottom: 1.5rem;
+}
+.staff-settings-section-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.staff-settings-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.staff-settings-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--cabinet-text-muted, #888);
+}
+.staff-settings-working-hours {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.staff-settings-day-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.staff-settings-day-name {
+  min-width: 2rem;
+  font-weight: 500;
+}
+.staff-settings-time {
+  width: 6rem;
+}
+.staff-settings-time-sep {
+  color: var(--cabinet-text-muted, #888);
+}
+.staff-settings-select {
+  max-width: 16rem;
+  display: block;
+}
+.staff-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.staff-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.staff-settings-field span:first-child {
+  font-weight: 500;
+}
+.staff-settings-field input {
+  max-width: 8rem;
+}
+.staff-settings-hint-inline {
+  font-size: 0.8rem;
+  color: var(--cabinet-text-muted, #888);
+}
+.staff-settings-actions {
+  margin-top: 1.25rem;
+}
+.staff-settings-actions button {
+  min-width: 8rem;
+}

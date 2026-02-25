@@ -36,9 +36,16 @@ import ru.itmo.cms.repository.BookingsTable
 import ru.itmo.cms.repository.BookingStatus
 import ru.itmo.cms.repository.MemberRepository
 import ru.itmo.cms.repository.MemberRow
+import ru.itmo.cms.repository.SettingsRepository
+import ru.itmo.cms.repository.SettingsKeys
+import ru.itmo.cms.repository.WorkingHoursRow
+import ru.itmo.cms.models.StaffSettingsResponse
+import ru.itmo.cms.models.PatchStaffSettingsRequest
+import ru.itmo.cms.models.WorkingHoursDayResponse
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -877,6 +884,50 @@ fun Application.configureStaffRoutes() {
             }
 
             // ----- Bookings -----
+            get("/api/staff/settings") {
+                val settings = SettingsRepository.getAppSettings()
+                val workingHours = settings.workingHoursByDay.entries.sortedBy { it.key }.map { (d, pair) ->
+                    WorkingHoursDayResponse(
+                        dayOfWeek = d,
+                        openingTime = "${pair.first.hour.toString().padStart(2, '0')}:${pair.first.minute.toString().padStart(2, '0')}",
+                        closingTime = "${pair.second.hour.toString().padStart(2, '0')}:${pair.second.minute.toString().padStart(2, '0')}"
+                    )
+                }
+                call.respond(StaffSettingsResponse(
+                    workingHours24_7 = settings.workingHours24_7,
+                    timezone = settings.timezone,
+                    slotMinutes = settings.slotMinutes,
+                    maxBookingDaysAhead = settings.maxBookingDaysAhead,
+                    minBookingMinutes = settings.minBookingMinutes,
+                    cancelBeforeHours = settings.cancelBeforeHours,
+                    workingHours = workingHours
+                ))
+            }
+            patch("/api/staff/settings") {
+                val body = call.receive<PatchStaffSettingsRequest>()
+                body.workingHours24_7?.let { v: Boolean -> SettingsRepository.setOrUpdate(SettingsKeys.WORKING_HOURS_24_7, v.toString()) }
+                body.timezone?.let { v: String -> SettingsRepository.setOrUpdate(SettingsKeys.TIMEZONE, v) }
+                body.slotMinutes?.let { v: Int -> SettingsRepository.setOrUpdate(SettingsKeys.SLOT_MINUTES, v.toString()) }
+                body.maxBookingDaysAhead?.let { v: Int -> SettingsRepository.setOrUpdate(SettingsKeys.MAX_BOOKING_DAYS_AHEAD, v.toString()) }
+                body.minBookingMinutes?.let { v: Int -> SettingsRepository.setOrUpdate(SettingsKeys.MIN_BOOKING_MINUTES, v.toString()) }
+                body.cancelBeforeHours?.let { v: Int -> SettingsRepository.setOrUpdate(SettingsKeys.CANCEL_BEFORE_HOURS, v.toString()) }
+                body.workingHours?.let { list ->
+                    if (list.isNotEmpty()) {
+                        val rows = list.map { d ->
+                            val open = d.openingTime.split(":").let { parts ->
+                                LocalTime.of(parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 9, parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0)
+                            }
+                            val close = d.closingTime.split(":").let { parts ->
+                                LocalTime.of(parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 21, parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0)
+                            }
+                            WorkingHoursRow(dayOfWeek = d.dayOfWeek, openingTime = open, closingTime = close)
+                        }
+                        SettingsRepository.saveWorkingHours(rows)
+                    }
+                }
+                call.respond(HttpStatusCode.NoContent)
+            }
+
             get("/api/staff/bookings") {
                 val dateStr = call.request.queryParameters["date"] ?: run {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Параметр date (YYYY-MM-DD) обязателен"))
@@ -888,7 +939,7 @@ fun Application.configureStaffRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Некорректная дата (ожидается YYYY-MM-DD)"))
                     return@get
                 }
-                val zone = ZoneId.of("Europe/Moscow")
+                val zone = SettingsRepository.getAppSettings().zoneId
                 val from = date.atStartOfDay()
                 val to = date.plusDays(1).atStartOfDay()
                 val rows = BookingRepository.listForDateRangeStaff(from, to)
@@ -900,7 +951,7 @@ fun Application.configureStaffRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                     return@get
                 }
-                val zone = ZoneId.of("Europe/Moscow")
+                val zone = SettingsRepository.getAppSettings().zoneId
                 val info = BookingRepository.findByIdForStaff(id)
                     ?: run {
                         call.respond(HttpStatusCode.NotFound, mapOf("error" to "Бронирование не найдено"))
@@ -913,7 +964,8 @@ fun Application.configureStaffRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                     return@patch
                 }
-                val failureReason = BookingRepository.updateParticipantsForStaffFailureReason(id)
+                val zoneId = SettingsRepository.getAppSettings().zoneId
+                val failureReason = BookingRepository.updateParticipantsForStaffFailureReason(id, zoneId)
                 if (failureReason != null) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to failureReason))
                     return@patch
@@ -1063,7 +1115,6 @@ private fun StaffSubscriptionRow.toStaffSubscriptionResponse() = StaffSubscripti
     paymentAmount = paymentAmount?.toDouble()
 )
 
-private val staffZone = ZoneId.of("Europe/Moscow")
 private val staffDateTimeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
 
 private fun BookingTimelineRow.toStaffBookingTimelineResponse(zone: ZoneId) = BookingTimelineResponse(

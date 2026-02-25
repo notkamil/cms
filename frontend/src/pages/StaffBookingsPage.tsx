@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import ru from 'date-fns/locale/ru'
+import { ru } from 'date-fns/locale/ru'
 import { get, post, patch, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -10,29 +10,53 @@ import './BookingsPage.css'
 registerLocale('ru', { ...ru, options: { weekStartsOn: 1 } })
 
 const PX_PER_MINUTE = 2
-const HOURS_START = 0
-const HOURS_END = 24
 const TICK_PADDING = 12
-const TRACK_TOTAL_WIDTH = (HOURS_END - HOURS_START) * 60 * PX_PER_MINUTE + 2 * TICK_PADDING
 
-function nextDayStr(isoDate: string): string {
-  const d = new Date(isoDate + 'T12:00:00+03:00')
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
+function getTimezoneOffsetMs(date: Date, timeZone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'longOffset' }).formatToParts(date)
+    const part = parts.find((p) => p.type === 'timeZoneName' && p.value)
+    if (!part?.value) return 0
+    const m = part.value.match(/([+-])(\d{1,2}):?(\d{2})?/)
+    if (!m) return 0
+    const sign = m[1] === '+' ? 1 : -1
+    const h = parseInt(m[2], 10) || 0
+    const min = parseInt(m[3], 10) || 0
+    return sign * (h * 60 + min) * 60 * 1000
+  } catch {
+    return 0
+  }
 }
 
-function dayBoundsMs(selectedDate: string): { start: number; end: number } {
-  const start = new Date(selectedDate + 'T00:00:00+03:00').getTime()
-  const end = new Date(nextDayStr(selectedDate) + 'T00:00:00+03:00').getTime()
+function dayBoundsMs(selectedDate: string, timeZone: string): { start: number; end: number } {
+  const noonUtc = new Date(selectedDate + 'T12:00:00.000Z').getTime()
+  const offsetMs = getTimezoneOffsetMs(new Date(noonUtc), timeZone)
+  const start = noonUtc - 12 * 60 * 60 * 1000 - offsetMs
+  const end = start + 24 * 60 * 60 * 1000
   return { start, end }
+}
+
+function getDayOfWeek(isoDate: string): number {
+  const d = new Date(isoDate + 'T12:00:00')
+  const day = d.getDay()
+  return day === 0 ? 7 : day
+}
+
+function parseTimeToMinutesFromMidnight(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map((s) => parseInt(s, 10))
+  if (Number.isNaN(h) || Number.isNaN(m)) return 0
+  return (h ?? 0) * 60 + (m ?? 0)
 }
 
 function bookingSegmentOnDay(
   startTime: string,
   endTime: string,
-  selectedDate: string
+  selectedDate: string,
+  timeZone: string,
+  dayStartMinutes: number,
+  dayEndMinutes: number
 ): { leftPx: number; widthPx: number; startM: number; endM: number } | null {
-  const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate)
+  const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate, timeZone)
   const startMs = new Date(startTime).getTime()
   const endMs = new Date(endTime).getTime()
   const clipStartMs = Math.max(startMs, dayStartMs)
@@ -40,9 +64,12 @@ function bookingSegmentOnDay(
   if (clipStartMs >= clipEndMs) return null
   const startM = (clipStartMs - dayStartMs) / 60000
   const endM = (clipEndMs - dayStartMs) / 60000
-  const leftPx = TICK_PADDING + startM * PX_PER_MINUTE
-  const widthPx = Math.max(2, (endM - startM) * PX_PER_MINUTE)
-  return { leftPx, widthPx, startM, endM }
+  if (startM >= dayEndMinutes || endM <= dayStartMinutes) return null
+  const visibleStart = Math.max(startM, dayStartMinutes)
+  const visibleEnd = Math.min(endM, dayEndMinutes)
+  const leftPx = TICK_PADDING + (visibleStart - dayStartMinutes) * PX_PER_MINUTE
+  const widthPx = Math.max(2, (visibleEnd - visibleStart) * PX_PER_MINUTE)
+  return { leftPx, widthPx, startM: visibleStart, endM: visibleEnd }
 }
 
 interface Space {
@@ -85,6 +112,18 @@ interface StaffBookingDetail extends BookingListItem {
   tariffType?: string | null
 }
 
+interface WorkingHoursDay {
+  dayOfWeek: number
+  openingTime: string
+  closingTime: string
+}
+
+interface StaffSettings {
+  timezone: string
+  workingHours24_7: boolean
+  workingHours: WorkingHoursDay[]
+}
+
 function parseISOMinutes(iso: string | undefined): number {
   if (!iso || typeof iso !== 'string') return 0
   const m = iso.match(/T(\d{2}):(\d{2})/)
@@ -111,7 +150,14 @@ function getBookingColor(b: BookingListItem): string {
   return 'var(--booking-other, #757575)'
 }
 
+const DEFAULT_SETTINGS: StaffSettings = {
+  timezone: 'Europe/Moscow',
+  workingHours24_7: true,
+  workingHours: [],
+}
+
 export default function StaffBookingsPage() {
+  const [settings, setSettings] = useState<StaffSettings>(DEFAULT_SETTINGS)
   const [spaces, setSpaces] = useState<Space[]>([])
   const [bookings, setBookings] = useState<BookingListItem[]>([])
   const [selectedDate, setSelectedDate] = useState<string>(() =>
@@ -139,10 +185,17 @@ export default function StaffBookingsPage() {
   const [spaceInfoModal, setSpaceInfoModal] = useState<SpaceFull | null>(null)
   const [spaceInfoLoading, setSpaceInfoLoading] = useState(false)
 
+  const dayOfWeek = getDayOfWeek(selectedDate)
+  const dayWh = settings.workingHours.find((w) => w.dayOfWeek === dayOfWeek)
+  const hoursStart = settings.workingHours24_7 ? 0 : (dayWh ? parseTimeToMinutesFromMidnight(dayWh.openingTime) : 9 * 60)
+  const hoursEnd = settings.workingHours24_7 ? 24 * 60 : (dayWh ? parseTimeToMinutesFromMidnight(dayWh.closingTime) : 21 * 60)
+  const trackMinutes = hoursEnd - hoursStart
+  const trackTotalWidth = trackMinutes * PX_PER_MINUTE + 2 * TICK_PADDING
   const isToday = selectedDate === new Date().toISOString().slice(0, 10)
-  const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() - HOURS_START * 60 : null
+  const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() - hoursStart : null
 
   const loadSpaces = useCallback(() => get<Space[]>('/api/staff/spaces', true), [])
+  const loadSettings = useCallback(() => get<StaffSettings>('/api/staff/settings', true), [])
 
   const openSpaceInfo = useCallback((spaceId: number) => {
     setSpaceInfoLoading(true)
@@ -155,6 +208,14 @@ export default function StaffBookingsPage() {
   const loadBookings = useCallback((date: string) => {
     return get<BookingListItem[]>(`/api/staff/bookings?date=${encodeURIComponent(date)}`, true)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    loadSettings()
+      .then((s) => { if (!cancelled) setSettings(s ?? DEFAULT_SETTINGS) })
+      .catch(() => { /* keep default */ })
+    return () => { cancelled = true }
+  }, [loadSettings])
 
   useEffect(() => {
     let cancelled = false
@@ -331,7 +392,7 @@ export default function StaffBookingsPage() {
           <DatePicker
             id="staff-bookings-date"
             selected={selectedDate ? new Date(selectedDate + 'T12:00:00') : null}
-            onChange={(d) =>
+            onChange={(d: Date | null) =>
               setSelectedDate(d ? d.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
             }
             locale="ru"
@@ -348,11 +409,14 @@ export default function StaffBookingsPage() {
         </p>
       </div>
 
-      <div className="bookings-timeline-wrap">
+      <div
+        className="bookings-timeline-wrap"
+        style={{ ['--track-total-width' as string]: `${trackTotalWidth}px` }}
+      >
         <div className="bookings-time-row">
           <div className="bookings-time-corner" aria-hidden />
-          <div className="bookings-time-axis" style={{ width: TRACK_TOTAL_WIDTH, minWidth: TRACK_TOTAL_WIDTH }}>
-            {Array.from({ length: HOURS_END - HOURS_START + 1 }, (_, i) => (
+          <div className="bookings-time-axis" style={{ width: trackTotalWidth, minWidth: trackTotalWidth }}>
+            {Array.from({ length: Math.floor(trackMinutes / 60) + 1 }, (_, i) => (
               <div
                 key={`line-${i}`}
                 className="bookings-hour-line"
@@ -360,11 +424,11 @@ export default function StaffBookingsPage() {
                 aria-hidden
               />
             ))}
-            {Array.from({ length: HOURS_END - HOURS_START + 1 }, (_, i) => HOURS_START + i).map((h) => (
+            {Array.from({ length: Math.floor(trackMinutes / 60) + 1 }, (_, i) => Math.floor(hoursStart / 60) + i).map((h) => (
               <div
                 key={h}
                 className="bookings-time-tick"
-                style={{ left: TICK_PADDING + (h - HOURS_START) * 60 * PX_PER_MINUTE }}
+                style={{ left: TICK_PADDING + (h * 60 - hoursStart) * PX_PER_MINUTE }}
               >
                 {h}:00
               </div>
@@ -373,7 +437,7 @@ export default function StaffBookingsPage() {
         </div>
         <div className="bookings-rows">
           {spaces.map((space) => {
-            const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate)
+            const { start: dayStartMs, end: dayEndMs } = dayBoundsMs(selectedDate, settings.timezone)
             const spaceBookings = bookings.filter(
               (b) =>
                 b.spaceId === space.id &&
@@ -394,13 +458,13 @@ export default function StaffBookingsPage() {
                 </div>
                 <div
                   className="bookings-track"
-                  style={{ width: TRACK_TOTAL_WIDTH, minWidth: TRACK_TOTAL_WIDTH }}
+                  style={{ width: trackTotalWidth, minWidth: trackTotalWidth }}
                   onClick={(e) => {
                     const target = e.target as HTMLElement
                     if (target.closest('.booking-block')) return
                   }}
                 >
-                  {Array.from({ length: HOURS_END - HOURS_START + 1 }, (_, i) => (
+                  {Array.from({ length: Math.floor(trackMinutes / 60) + 1 }, (_, i) => (
                     <div
                       key={i}
                       className="bookings-hour-line"
@@ -409,7 +473,7 @@ export default function StaffBookingsPage() {
                     />
                   ))}
                   {spaceBookings.map((b) => {
-                    const seg = bookingSegmentOnDay(b.startTime, b.endTime, selectedDate)
+                    const seg = bookingSegmentOnDay(b.startTime, b.endTime, selectedDate, settings.timezone, hoursStart, hoursEnd)
                     if (!seg) return null
                     const { leftPx, widthPx, startM, endM } = seg
                     const isShort = widthPx < 70
@@ -442,7 +506,7 @@ export default function StaffBookingsPage() {
                       </div>
                     )
                   })}
-                  {isToday && nowMinutes != null && nowMinutes >= 0 && nowMinutes < (HOURS_END - HOURS_START) * 60 && (
+                  {isToday && nowMinutes != null && nowMinutes >= 0 && nowMinutes < trackMinutes && (
                     <div
                       className="bookings-now-line"
                       style={{ left: TICK_PADDING + nowMinutes * PX_PER_MINUTE }}

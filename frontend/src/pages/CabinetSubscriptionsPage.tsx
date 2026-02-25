@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import ru from 'date-fns/locale/ru'
+import { ru } from 'date-fns/locale/ru'
 import { get, post, ApiError } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
 import { formatPrice } from '../utils/formatPrice'
@@ -334,7 +334,7 @@ export default function CabinetSubscriptionsPage() {
                     <td>
                       <DatePicker
                         selected={subscribeStartDate ? new Date(subscribeStartDate + 'T12:00:00') : null}
-                        onChange={(d) => setSubscribeStartDate(d ? d.toISOString().slice(0, 10) : todayISO())}
+                        onChange={(d: Date | null) => setSubscribeStartDate(d ? d.toISOString().slice(0, 10) : todayISO())}
                         locale="ru"
                         dateFormat="dd.MM.yyyy"
                         minDate={new Date()}

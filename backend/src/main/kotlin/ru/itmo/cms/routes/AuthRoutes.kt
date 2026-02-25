@@ -29,7 +29,10 @@ import ru.itmo.cms.models.CreateBookingRequest
 import ru.itmo.cms.models.MemberSearchResponse
 import ru.itmo.cms.models.MyBookingsListResponse
 import ru.itmo.cms.models.UpdateBookingParticipantsRequest
+import ru.itmo.cms.models.BookingSettingsResponse
+import ru.itmo.cms.models.WorkingHoursDayResponse
 import ru.itmo.cms.repository.MemberRepository
+import ru.itmo.cms.repository.SettingsRepository
 import ru.itmo.cms.repository.MemberRow
 import ru.itmo.cms.repository.ProfileUpdateException
 import ru.itmo.cms.repository.SubscriptionRepository
@@ -456,6 +459,30 @@ fun Application.configureAuthRoutes() {
                 )
             }
 
+            get("/api/me/settings") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val settings = SettingsRepository.getAppSettings()
+                val workingHours = settings.workingHoursByDay.entries.sortedBy { it.key }.map { (d, pair) ->
+                    WorkingHoursDayResponse(
+                        dayOfWeek = d,
+                        openingTime = "${pair.first.hour.toString().padStart(2, '0')}:${pair.first.minute.toString().padStart(2, '0')}",
+                        closingTime = "${pair.second.hour.toString().padStart(2, '0')}:${pair.second.minute.toString().padStart(2, '0')}"
+                    )
+                }
+                call.respond(BookingSettingsResponse(
+                    timezone = settings.timezone,
+                    workingHours24_7 = settings.workingHours24_7,
+                    workingHours = workingHours,
+                    slotMinutes = settings.slotMinutes,
+                    maxBookingDaysAhead = settings.maxBookingDaysAhead,
+                    minBookingMinutes = settings.minBookingMinutes,
+                    cancelBeforeHours = settings.cancelBeforeHours
+                ))
+            }
+
             get("/api/me/bookings") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
                     call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
@@ -469,7 +496,8 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите date (YYYY-MM-DD)"))
                     return@get
                 }
-                val zone = ZoneId.of("Europe/Moscow")
+                val settings = SettingsRepository.getAppSettings()
+                val zone = settings.zoneId
                 val date = try {
                     LocalDate.parse(dateStr)
                 } catch (_: Exception) {
@@ -492,7 +520,7 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
                     return@get
                 }
-                val zone = ZoneId.of("Europe/Moscow")
+                val zone = SettingsRepository.getAppSettings().zoneId
                 val (current, archive) = BookingRepository.listMyBookings(memberId)
                 call.respond(MyBookingsListResponse(
                     current = current.map { it.toBookingTimelineResponse(zone) },
@@ -509,7 +537,8 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
                     return@post
                 }
-                val zone = ZoneId.of("Europe/Moscow")
+                val settings = SettingsRepository.getAppSettings()
+                val zone = settings.zoneId
                 val body = call.receive<CreateBookingRequest>()
                 val bookingType = when (body.bookingType) {
                     "subscription" -> BookingType.subscription
@@ -563,10 +592,16 @@ fun Application.configureAuthRoutes() {
                     bookingType = bookingType,
                     subscriptionId = body.subscriptionId,
                     tariffId = body.tariffId,
-                    participantMemberIds = body.participantMemberIds
+                    participantMemberIds = body.participantMemberIds,
+                    slotMinutes = settings.slotMinutes,
+                    minBookingMinutes = settings.minBookingMinutes,
+                    maxBookingDaysAhead = settings.maxBookingDaysAhead,
+                    workingHours24_7 = settings.workingHours24_7,
+                    workingHoursByDay = settings.workingHoursByDay,
+                    zoneId = settings.zoneId
                 )
                 if (id == null) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Не удалось создать бронирование (пересечение, нехватка часов/средств или неверные параметры)"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Не удалось создать бронирование (пересечение, нехватка часов/средств, неверные параметры или вне рабочих часов)"))
                     return@post
                 }
                 call.respond(HttpStatusCode.Created, mapOf("id" to id))
@@ -585,7 +620,9 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                     return@post
                 }
-                val failureReason = BookingRepository.cancelFailureReason(id, memberId)
+                val settings = SettingsRepository.getAppSettings()
+                val cancelBeforeMinutes = settings.cancelBeforeHours * 60
+                val failureReason = BookingRepository.cancelFailureReason(id, memberId, cancelBeforeMinutes, settings.zoneId)
                 if (failureReason != null) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to failureReason))
                     return@post
@@ -607,7 +644,8 @@ fun Application.configureAuthRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                     return@patch
                 }
-                val failureReason = BookingRepository.updateParticipantsFailureReason(id, memberId)
+                val settings = SettingsRepository.getAppSettings()
+                val failureReason = BookingRepository.updateParticipantsFailureReason(id, memberId, settings.zoneId)
                 if (failureReason != null) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to failureReason))
                     return@patch

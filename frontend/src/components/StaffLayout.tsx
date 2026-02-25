@@ -99,6 +99,7 @@ export function StaffLayout({ children }: StaffLayoutProps) {
               <NavLink to="/staff/tariffs" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Тарифы</NavLink>
               <NavLink to="/staff/subscriptions" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Подписки</NavLink>
               <NavLink to="/staff/bookings" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Бронирования</NavLink>
+              <NavLink to="/staff/settings" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Общие</NavLink>
             </nav>
           )}
         </div>

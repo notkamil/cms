@@ -163,6 +163,22 @@ CREATE TABLE MemberProfileAudit (
     NewPasswordHash VARCHAR(255) NOT NULL
 );
 
+-- Общие настройки (key-value). Редактирует только стафф.
+-- Примеры ключей: WorkingHours24_7 (true/false), Timezone, SlotMinutes, ...
+CREATE TABLE SystemSettings (
+    Key   VARCHAR(64) NOT NULL PRIMARY KEY,
+    Value TEXT        NOT NULL DEFAULT ''
+);
+
+-- Рабочие часы по дням недели. 1 = понедельник, 7 = воскресенье (ISO).
+-- Формат времени HH:mm, без перехода через полночь (OpeningTime < ClosingTime).
+-- При «круглосуточно» можно не использовать или хранить 00:00–24:00.
+CREATE TABLE WorkingHours (
+    DayOfWeek    INT         NOT NULL PRIMARY KEY CHECK (DayOfWeek BETWEEN 1 AND 7),
+    OpeningTime  VARCHAR(5)  NOT NULL,
+    ClosingTime  VARCHAR(5)  NOT NULL
+);
+
 -- Audit log for staff (create/update/dismiss). Пустые значения: пустая строка для текста, 'inactive' для роли (null не используем).
 CREATE TABLE StaffAudit (
     AuditId           INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

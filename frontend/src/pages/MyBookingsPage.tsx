@@ -66,7 +66,10 @@ function paymentLabel(type: string): string {
   return type === 'subscription' ? 'Подписка' : 'Разовая оплата'
 }
 
+const DEFAULT_CANCEL_BEFORE_HOURS = 2
+
 export default function MyBookingsPage() {
+  const [cancelBeforeHours, setCancelBeforeHours] = useState(DEFAULT_CANCEL_BEFORE_HOURS)
   const [loading, setLoading] = useState(true)
   const [loadingElapsed, setLoadingElapsed] = useState(0)
   const loadingStartRef = useRef<number | null>(null)
@@ -86,6 +89,7 @@ export default function MyBookingsPage() {
   const loadList = useCallback(() => {
     return get<MyBookingsListResponse>('/api/me/bookings/list')
   }, [])
+  const loadSettings = useCallback(() => get<{ cancelBeforeHours: number }>('/api/me/settings'), [])
 
   const openSpaceInfo = useCallback((spaceId: number) => {
     setSpaceInfoLoading(true)
@@ -95,6 +99,14 @@ export default function MyBookingsPage() {
       .catch(() => setSpaceInfoModal(null))
       .finally(() => setSpaceInfoLoading(false))
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    loadSettings()
+      .then((s) => { if (!cancelled) setCancelBeforeHours(s.cancelBeforeHours ?? DEFAULT_CANCEL_BEFORE_HOURS) })
+      .catch(() => { /* keep default */ })
+    return () => { cancelled = true }
+  }, [loadSettings])
 
   useEffect(() => {
     let cancelled = false
@@ -187,7 +199,7 @@ export default function MyBookingsPage() {
     }
   }
 
-  /** Отмена доступна: активное бронирование, пользователь — владелец или участник, ещё не началось и не менее чем за 2 ч до начала. */
+  /** Отмена доступна: активное, владелец, ещё не началось и не менее чем за cancelBeforeHours до начала. */
   const canCancel = (b: BookingItem) => {
     if (b.status !== 'confirmed' || !b.isCreator) return false
     const now = Date.now()
@@ -195,7 +207,7 @@ export default function MyBookingsPage() {
     const end = new Date(b.endTime).getTime()
     if (end <= now) return false
     if (start <= now) return false
-    return (start - now) >= 2 * 60 * 60 * 1000
+    return (start - now) >= cancelBeforeHours * 60 * 60 * 1000
   }
 
   const canEdit = (b: BookingItem) =>

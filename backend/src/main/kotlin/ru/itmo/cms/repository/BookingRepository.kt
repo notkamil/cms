@@ -13,6 +13,9 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 /** Бронирование для таймлайна: с флагами isCreator/isParticipant для текущего пользователя. */
@@ -224,7 +227,7 @@ object BookingRepository {
         filtered.isNotEmpty()
     }
 
-    /** Создать бронирование. 15-мин гранулярность, без пересечений, подписка: списать минуты; one_off: создать OneOff+транзакция. */
+    /** Создать бронирование. Гранулярность по slotMinutes, без пересечений, проверка рабочих часов (кроме фикс-подписки), подписка: списать минуты; one_off: создать OneOff+транзакция. now берётся в zoneId. */
     fun create(
         memberId: Int,
         spaceId: Int,
@@ -233,12 +236,47 @@ object BookingRepository {
         bookingType: BookingType,
         subscriptionId: Int?,
         tariffId: Int?,
-        participantMemberIds: List<Int>
+        participantMemberIds: List<Int>,
+        slotMinutes: Int,
+        minBookingMinutes: Int,
+        maxBookingDaysAhead: Int,
+        workingHours24_7: Boolean,
+        workingHoursByDay: Map<Int, Pair<LocalTime, LocalTime>>,
+        zoneId: ZoneId
     ): Int? = transaction {
         val durationMinutes = java.time.Duration.between(startTime, endTime).toMinutes().toInt()
         if (durationMinutes <= 0) return@transaction null
-        if (durationMinutes % 15 != 0) return@transaction null
-        if (startTime.minute % 15 != 0 || startTime.second != 0 || startTime.nano != 0) return@transaction null
+        if (slotMinutes <= 0 || durationMinutes % slotMinutes != 0) return@transaction null
+        if (startTime.minute % slotMinutes != 0 || startTime.second != 0 || startTime.nano != 0) return@transaction null
+        if (durationMinutes < minBookingMinutes) return@transaction null
+        val now = ZonedDateTime.now(zoneId).toLocalDateTime()
+        val deadline = now.plusDays(maxBookingDaysAhead.toLong())
+        if (endTime >= deadline) return@transaction null
+
+        val isFixedSubscription = when (bookingType) {
+            BookingType.one_time -> false
+            BookingType.subscription -> {
+                val subRow = subscriptionId?.let { id ->
+                    SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq id }.singleOrNull()
+                } ?: null
+                val tariff = subRow?.let { TariffRepository.findById(it[SubscriptionsTable.tariffId]) }
+                tariff?.type == TariffType.fixed
+            }
+        }
+        if (!isFixedSubscription && !workingHours24_7) {
+            var date = startTime.toLocalDate()
+            val endDate = if (endTime.toLocalTime() == LocalTime.MIDNIGHT) endTime.toLocalDate().minusDays(1) else endTime.toLocalDate()
+            while (!date.isAfter(endDate)) {
+                val dayOfWeek = date.dayOfWeek.value
+                val (open, close) = workingHoursByDay[dayOfWeek] ?: return@transaction null
+                val dayOpen = date.atTime(open)
+                val dayClose = date.atTime(close)
+                if (startTime.toLocalDate() == date && startTime < dayOpen) return@transaction null
+                if (endTime.toLocalDate() == date && endTime > dayClose) return@transaction null
+                date = date.plusDays(1)
+            }
+        }
+
         val space = SpaceRepository.findById(spaceId) ?: return@transaction null
         if (space.status == "disabled") return@transaction null
         if (hasOverlap(spaceId, startTime, endTime, null)) return@transaction null
@@ -328,8 +366,8 @@ object BookingRepository {
         }
     }
 
-    /** Причина, по которой отмену нельзя выполнить; null — отмена возможна. */
-    fun cancelFailureReason(bookingId: Int, memberId: Int): String? = transaction {
+    /** Причина, по которой отмену нельзя выполнить; null — отмена возможна. cancelBeforeMinutes — минимум минут до начала; now берётся в zoneId. */
+    fun cancelFailureReason(bookingId: Int, memberId: Int, cancelBeforeMinutes: Int, zoneId: ZoneId): String? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
             ?: return@transaction "Бронирование не найдено"
         if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование уже отменено или завершено"
@@ -343,9 +381,13 @@ object BookingRepository {
             if (tariff?.type == TariffType.fixed) return@transaction "Отмена возможна только через администратора"
         }
         val startTime = row[BookingsTable.startTime]
-        val now = LocalDateTime.now()
+        val now = ZonedDateTime.now(zoneId).toLocalDateTime()
         if (startTime <= now) return@transaction "Бронирование уже началось или прошло"
-        if (java.time.Duration.between(now, startTime).toMinutes() < 120) return@transaction "Отменить можно не позднее чем за 2 часа до начала"
+        val mins = java.time.Duration.between(now, startTime).toMinutes()
+        if (mins < cancelBeforeMinutes) {
+            val msg = if (cancelBeforeMinutes >= 60 && cancelBeforeMinutes % 60 == 0) "за ${cancelBeforeMinutes / 60} ч" else "за $cancelBeforeMinutes мин"
+            return@transaction "Отменить можно не позднее чем $msg до начала"
+        }
         null
     }
 
@@ -497,14 +539,14 @@ object BookingRepository {
         Pair(current.sortedBy { it.startTime }, archive.sortedByDescending { it.startTime })
     }
 
-    /** Обновить участников бронирования (только создатель, только подтверждённое, ещё не началось). */
-    fun updateParticipantsFailureReason(bookingId: Int, memberId: Int): String? = transaction {
+    /** Обновить участников бронирования (только создатель, только подтверждённое, ещё не началось). now в zoneId. */
+    fun updateParticipantsFailureReason(bookingId: Int, memberId: Int, zoneId: ZoneId): String? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
             ?: return@transaction "Бронирование не найдено"
         if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование отменено или завершено"
         if (row[BookingsTable.createdBy] != memberId) return@transaction "Только владелец может менять участников"
         val startTime = row[BookingsTable.startTime]
-        if (startTime <= LocalDateTime.now()) return@transaction "Бронирование уже началось"
+        if (startTime <= ZonedDateTime.now(zoneId).toLocalDateTime()) return@transaction "Бронирование уже началось"
         null
     }
 
@@ -518,13 +560,13 @@ object BookingRepository {
         }
     }
 
-    /** Проверка возможности редактирования участников сотрудником; null — можно. */
-    fun updateParticipantsForStaffFailureReason(bookingId: Int): String? = transaction {
+    /** Проверка возможности редактирования участников сотрудником; null — можно. now в zoneId. */
+    fun updateParticipantsForStaffFailureReason(bookingId: Int, zoneId: ZoneId): String? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
             ?: return@transaction "Бронирование не найдено"
         if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование отменено или завершено"
         val startTime = row[BookingsTable.startTime]
-        if (startTime <= LocalDateTime.now()) return@transaction "Бронирование уже началось"
+        if (startTime <= ZonedDateTime.now(zoneId).toLocalDateTime()) return@transaction "Бронирование уже началось"
         null
     }
 

@@ -94,7 +94,7 @@
 .bookings-time-row {
   display: flex;
   flex-shrink: 0;
-  min-width: calc(8rem + 2904px);
+  min-width: calc(8rem + var(--track-total-width, 2904px));
   border-bottom: 1px solid var(--cabinet-border);
 }
 
@@ -110,7 +110,7 @@
   position: relative;
   height: 2rem;
   flex-shrink: 0;
-  min-width: 2904px; /* TRACK_TOTAL_WIDTH: 2880 + 2*12 */
+  min-width: var(--track-total-width, 2904px);
 }
 
 .bookings-time-axis .bookings-hour-line {
@@ -129,7 +129,7 @@
 .bookings-rows {
   display: flex;
   flex-direction: column;
-  min-width: calc(8rem + 2904px); /* 8rem + TRACK_TOTAL_WIDTH */
+  min-width: calc(8rem + var(--track-total-width, 2904px));
 }
 
 .bookings-row {

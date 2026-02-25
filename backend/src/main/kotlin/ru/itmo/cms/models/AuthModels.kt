@@ -413,3 +413,47 @@ data class StaffSubscriptionResponse(
 data class CancelSubscriptionRequest(
     val refundAmount: Double? = null
 )
+
+// ----- Settings (for booking UI and staff) -----
+
+@Serializable
+data class WorkingHoursDayResponse(
+    val dayOfWeek: Int,
+    val openingTime: String,
+    val closingTime: String
+)
+
+/** Настройки для полотна бронирований и проверок (GET /api/me/settings). */
+@Serializable
+data class BookingSettingsResponse(
+    val timezone: String,
+    val workingHours24_7: Boolean,
+    val workingHours: List<WorkingHoursDayResponse>,
+    val slotMinutes: Int,
+    val maxBookingDaysAhead: Int,
+    val minBookingMinutes: Int,
+    val cancelBeforeHours: Int
+)
+
+/** Полные настройки для админки (GET/PATCH /api/staff/settings). */
+@Serializable
+data class StaffSettingsResponse(
+    val workingHours24_7: Boolean,
+    val timezone: String,
+    val slotMinutes: Int,
+    val maxBookingDaysAhead: Int,
+    val minBookingMinutes: Int,
+    val cancelBeforeHours: Int,
+    val workingHours: List<WorkingHoursDayResponse>
+)
+
+@Serializable
+data class PatchStaffSettingsRequest(
+    val workingHours24_7: Boolean? = null,
+    val timezone: String? = null,
+    val slotMinutes: Int? = null,
+    val maxBookingDaysAhead: Int? = null,
+    val minBookingMinutes: Int? = null,
+    val cancelBeforeHours: Int? = null,
+    val workingHours: List<WorkingHoursDayResponse>? = null
+)

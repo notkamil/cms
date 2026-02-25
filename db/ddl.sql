@@ -7,10 +7,7 @@
 -- ENUM-types
 -- ============================================================
 
--- Для существующей БД: ALTER TYPE space_status ADD VALUE 'disabled';
 CREATE TYPE space_status        AS ENUM ('available', 'occupied', 'maintenance', 'disabled');
--- tariff_type: fixed (фикс, одно место), hourly (почасовой), package (пакет, пул пространств)
--- Если в БД уже был 'monthly', выполните: ALTER TYPE tariff_type RENAME VALUE 'monthly' TO 'fixed';
 CREATE TYPE tariff_type         AS ENUM ('fixed', 'hourly', 'package');
 CREATE TYPE booking_type        AS ENUM ('one_time', 'subscription');
 CREATE TYPE booking_status      AS ENUM ('confirmed', 'cancelled', 'completed');
@@ -148,7 +145,6 @@ CREATE TABLE TransactionSubscriptions (
     SubscriptionId INT NOT NULL             REFERENCES Subscriptions (SubscriptionId)
 );
 
--- Audit log for profile and password changes (old/new values per field)
 CREATE TABLE MemberProfileAudit (
     AuditId         INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     MemberId        INT          NOT NULL REFERENCES Members (MemberId),
@@ -163,23 +159,17 @@ CREATE TABLE MemberProfileAudit (
     NewPasswordHash VARCHAR(255) NOT NULL
 );
 
--- Общие настройки (key-value). Редактирует только стафф.
--- Примеры ключей: WorkingHours24_7 (true/false), Timezone, SlotMinutes, ...
 CREATE TABLE SystemSettings (
     Key   VARCHAR(64) NOT NULL PRIMARY KEY,
     Value TEXT        NOT NULL DEFAULT ''
 );
 
--- Рабочие часы по дням недели. 1 = понедельник, 7 = воскресенье (ISO).
--- Формат времени HH:mm, без перехода через полночь (OpeningTime < ClosingTime).
--- При «круглосуточно» можно не использовать или хранить 00:00–24:00.
 CREATE TABLE WorkingHours (
     DayOfWeek    INT         NOT NULL PRIMARY KEY CHECK (DayOfWeek BETWEEN 1 AND 7),
     OpeningTime  VARCHAR(5)  NOT NULL,
     ClosingTime  VARCHAR(5)  NOT NULL
 );
 
--- Audit log for staff (create/update/dismiss). Пустые значения: пустая строка для текста, 'inactive' для роли (null не используем).
 CREATE TABLE StaffAudit (
     AuditId           INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     StaffId            INT          NOT NULL REFERENCES Staff (StaffId),

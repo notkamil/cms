@@ -10,7 +10,6 @@ import { StaffLayout } from './components/StaffLayout'
 import StaffLoginPage from './pages/StaffLoginPage'
 import StaffHomePage from './pages/StaffHomePage'
 import StaffCabinetPage from './pages/StaffCabinetPage'
-import StaffSpaceTypesPage from './pages/StaffSpaceTypesPage'
 import StaffSpacesPage from './pages/StaffSpacesPage'
 import StaffAmenitiesPage from './pages/StaffAmenitiesPage'
 import StaffTariffsPage from './pages/StaffTariffsPage'
@@ -49,7 +48,6 @@ function App() {
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffGate />} />
               <Route path="cabinet" element={<StaffCabinetPage />} />
-              <Route path="space-types" element={<StaffSpaceTypesPage />} />
               <Route path="spaces" element={<StaffSpacesPage />} />
               <Route path="amenities" element={<StaffAmenitiesPage />} />
               <Route path="tariffs" element={<StaffTariffsPage />} />

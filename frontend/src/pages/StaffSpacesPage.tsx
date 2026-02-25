@@ -16,6 +16,11 @@ interface SpaceType {
   description: string
 }
 
+interface SpaceSummary {
+  spaceId: number
+  name: string
+}
+
 interface Space {
   id: number
   name: string
@@ -28,6 +33,7 @@ interface Space {
 }
 
 type ModalKind = 'add' | 'edit' | 'delete' | null
+type TypeModalKind = 'add' | 'edit' | 'delete' | null
 
 export default function StaffSpacesPage() {
   const [list, setList] = useState<Space[]>([])
@@ -59,9 +65,27 @@ export default function StaffSpacesPage() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  const [typeModal, setTypeModal] = useState<TypeModalKind>(null)
+  const [typeEditId, setTypeEditId] = useState<number | null>(null)
+  const [addTypeName, setAddTypeName] = useState('')
+  const [addTypeDescription, setAddTypeDescription] = useState('')
+  const [addTypeError, setAddTypeError] = useState<string | null>(null)
+  const [addTypeLoading, setAddTypeLoading] = useState(false)
+  const [editTypeName, setEditTypeName] = useState('')
+  const [editTypeDescription, setEditTypeDescription] = useState('')
+  const [editTypeError, setEditTypeError] = useState<string | null>(null)
+  const [editTypeLoading, setEditTypeLoading] = useState(false)
+  const [deleteTypeSpaces, setDeleteTypeSpaces] = useState<SpaceSummary[]>([])
+  const [deleteTypeLoading, setDeleteTypeLoading] = useState(false)
+  const [deleteTypeError, setDeleteTypeError] = useState<string | null>(null)
+
   const sortedList = useMemo(
     () => [...list].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
     [list]
+  )
+  const sortedTypes = useMemo(
+    () => [...types].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+    [types]
   )
 
   const loadList = useCallback(() => {
@@ -129,6 +153,101 @@ export default function StaffSpacesPage() {
     setEditError(null)
     setDeleteError(null)
   }
+
+  const openTypeAdd = () => {
+    setAddTypeName('')
+    setAddTypeDescription('')
+    setAddTypeError(null)
+    setTypeModal('add')
+  }
+  const openTypeEdit = (row: SpaceType) => {
+    setTypeEditId(row.id)
+    setEditTypeName(row.name)
+    setEditTypeDescription(row.description ?? '')
+    setEditTypeError(null)
+    setTypeModal('edit')
+  }
+  const openTypeDelete = async (row: SpaceType) => {
+    setTypeEditId(row.id)
+    setDeleteTypeSpaces([])
+    setTypeModal('delete')
+    try {
+      const spaces = await get<SpaceSummary[]>(`/api/staff/space-types/${row.id}/spaces`, true)
+      setDeleteTypeSpaces(spaces)
+    } catch {
+      setDeleteTypeSpaces([])
+    }
+  }
+  const closeTypeModal = () => {
+    setTypeModal(null)
+    setTypeEditId(null)
+    setAddTypeError(null)
+    setEditTypeError(null)
+    setDeleteTypeError(null)
+  }
+
+  const submitTypeAdd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const name = addTypeName.trim()
+    if (!name) {
+      setAddTypeError('Название обязательно')
+      return
+    }
+    setAddTypeLoading(true)
+    setAddTypeError(null)
+    try {
+      await post<SpaceType>(
+        '/api/staff/space-types',
+        { name, description: addTypeDescription.trim() || null },
+        true
+      )
+      loadList()
+      closeTypeModal()
+    } catch (err) {
+      setAddTypeError(err instanceof ApiError ? err.message : 'Ошибка при добавлении')
+    } finally {
+      setAddTypeLoading(false)
+    }
+  }
+  const submitTypeEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (typeEditId == null) return
+    const name = editTypeName.trim()
+    if (!name) {
+      setEditTypeError('Название обязательно')
+      return
+    }
+    setEditTypeLoading(true)
+    setEditTypeError(null)
+    try {
+      await patch<SpaceType>(
+        `/api/staff/space-types/${typeEditId}`,
+        { name, description: editTypeDescription.trim() || null },
+        true
+      )
+      loadList()
+      closeTypeModal()
+    } catch (err) {
+      setEditTypeError(err instanceof ApiError ? err.message : 'Ошибка при сохранении')
+    } finally {
+      setEditTypeLoading(false)
+    }
+  }
+  const submitTypeDelete = async () => {
+    if (typeEditId == null || deleteTypeSpaces.length > 0) return
+    setDeleteTypeLoading(true)
+    setDeleteTypeError(null)
+    try {
+      await del(`/api/staff/space-types/${typeEditId}`, true)
+      loadList()
+      closeTypeModal()
+    } catch (err) {
+      setDeleteTypeError(err instanceof ApiError ? err.message : 'Ошибка при удалении')
+    } finally {
+      setDeleteTypeLoading(false)
+    }
+  }
+  const canDeleteType = deleteTypeSpaces.length === 0
 
   const statusLabel = (status: string) =>
     STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status
@@ -309,6 +428,54 @@ export default function StaffSpacesPage() {
             Добавить
           </button>
         </div>
+
+        <section className="cabinet-section" style={{ marginTop: '2rem' }}>
+          <h3 className="cabinet-section-title">Типы пространств</h3>
+          {sortedTypes.length === 0 ? (
+            <p className="cabinet-muted">Нет типов пространств</p>
+          ) : (
+            <table className="cabinet-table cabinet-history-table staff-space-types-table">
+              <thead>
+                <tr>
+                  <th scope="col">Название</th>
+                  <th scope="col">Описание</th>
+                  <th scope="col">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTypes.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.name}</td>
+                    <td>{row.description || '—'}</td>
+                    <td>
+                      <div className="cabinet-table-actions-cell">
+                        <button
+                          type="button"
+                          className="cabinet-edit-btn"
+                          onClick={() => openTypeEdit(row)}
+                        >
+                          Изменить
+                        </button>
+                        <button
+                          type="button"
+                          className="cabinet-password-btn"
+                          onClick={() => openTypeDelete(row)}
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <div className="cabinet-actions">
+            <button type="button" className="cabinet-edit-btn" onClick={openTypeAdd}>
+              Добавить тип
+            </button>
+          </div>
+        </section>
       </div>
 
       {/* Add modal */}
@@ -543,6 +710,140 @@ export default function StaffSpacesPage() {
                 >
                   {deleteLoading ? 'Удаление…' : 'Удалить'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Type: Add modal */}
+      {typeModal === 'add' && (
+        <div className="cabinet-modal-overlay" onClick={closeTypeModal}>
+          <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cabinet-modal-title">Добавить тип пространства</h3>
+            <form className="cabinet-modal-form" onSubmit={submitTypeAdd}>
+              {addTypeError && <p className="cabinet-modal-error" role="alert">{addTypeError}</p>}
+              <div className="cabinet-modal-field">
+                <label className="cabinet-modal-label" htmlFor="add-type-name">Название *</label>
+                <input
+                  id="add-type-name"
+                  type="text"
+                  className="cabinet-modal-input"
+                  value={addTypeName}
+                  onChange={(e) => setAddTypeName(e.target.value)}
+                  maxLength={24}
+                  autoFocus
+                />
+              </div>
+              <div className="cabinet-modal-field">
+                <label className="cabinet-modal-label" htmlFor="add-type-desc">Описание</label>
+                <textarea
+                  id="add-type-desc"
+                  className="cabinet-modal-input"
+                  value={addTypeDescription}
+                  onChange={(e) => setAddTypeDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="cabinet-modal-actions">
+                <button type="button" className="cabinet-modal-cancel" onClick={closeTypeModal}>
+                  Отмена
+                </button>
+                <button type="submit" className="cabinet-modal-submit" disabled={addTypeLoading}>
+                  {addTypeLoading ? 'Сохранение…' : 'Подтвердить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Type: Edit modal */}
+      {typeModal === 'edit' && (
+        <div className="cabinet-modal-overlay" onClick={closeTypeModal}>
+          <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cabinet-modal-title">Изменить тип пространства</h3>
+            <form className="cabinet-modal-form" onSubmit={submitTypeEdit}>
+              {editTypeError && <p className="cabinet-modal-error" role="alert">{editTypeError}</p>}
+              <div className="cabinet-modal-field">
+                <label className="cabinet-modal-label" htmlFor="edit-type-name">Название *</label>
+                <input
+                  id="edit-type-name"
+                  type="text"
+                  className="cabinet-modal-input"
+                  value={editTypeName}
+                  onChange={(e) => setEditTypeName(e.target.value)}
+                  maxLength={24}
+                  autoFocus
+                />
+              </div>
+              <div className="cabinet-modal-field">
+                <label className="cabinet-modal-label" htmlFor="edit-type-desc">Описание</label>
+                <textarea
+                  id="edit-type-desc"
+                  className="cabinet-modal-input"
+                  value={editTypeDescription}
+                  onChange={(e) => setEditTypeDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="cabinet-modal-actions">
+                <button type="button" className="cabinet-modal-cancel" onClick={closeTypeModal}>
+                  Отмена
+                </button>
+                <button type="submit" className="cabinet-modal-submit" disabled={editTypeLoading}>
+                  {editTypeLoading ? 'Сохранение…' : 'Подтвердить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Type: Delete modal */}
+      {typeModal === 'delete' && (
+        <div className="cabinet-modal-overlay" onClick={closeTypeModal}>
+          <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cabinet-modal-title">
+              {deleteTypeSpaces.length > 0 ? 'Удаление невозможно' : 'Удалить тип пространства?'}
+            </h3>
+            <div className="cabinet-modal-form">
+              {deleteTypeError && <p className="cabinet-modal-error" role="alert">{deleteTypeError}</p>}
+              {deleteTypeSpaces.length > 0 ? (
+                <div className="staff-conflict-block">
+                  <p>Следующие пространства имеют этот тип:</p>
+                  <table className="staff-conflict-table" aria-label="Пространства с этим типом">
+                    <thead>
+                      <tr>
+                        <th scope="col">Название</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deleteTypeSpaces.map((s) => (
+                        <tr key={s.spaceId}>
+                          <td>{s.name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p>Вы уверены, что хотите удалить этот тип? Это действие нельзя отменить</p>
+              )}
+              <div className="cabinet-modal-actions">
+                <button type="button" className="cabinet-modal-cancel" onClick={closeTypeModal}>
+                  {deleteTypeSpaces.length > 0 ? 'Хорошо' : 'Отмена'}
+                </button>
+                {canDeleteType && (
+                  <button
+                    type="button"
+                    className="cabinet-password-btn"
+                    disabled={deleteTypeLoading}
+                    onClick={submitTypeDelete}
+                  >
+                    {deleteTypeLoading ? 'Удаление…' : 'Удалить'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

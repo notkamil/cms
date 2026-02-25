@@ -91,7 +91,6 @@ export function StaffLayout({ children }: StaffLayoutProps) {
             <nav className="cabinet-header-nav">
               <NavLink to="/staff" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`} end>Главная</NavLink>
               <NavLink to="/staff/cabinet" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Личный кабинет</NavLink>
-              <NavLink to="/staff/space-types" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Типы пространств</NavLink>
               <NavLink to="/staff/spaces" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Пространства</NavLink>
               <NavLink to="/staff/amenities" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Удобства</NavLink>
               <NavLink to="/staff/tariffs" className={({ isActive }) => `cabinet-header-link${isActive ? ' cabinet-header-link--active' : ''}`}>Тарифы</NavLink>

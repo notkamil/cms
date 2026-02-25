@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { get } from '../api/client'
 import { LoadingLogo } from '../components/LoadingLogo'
@@ -21,8 +21,12 @@ export default function CabinetSpacesPage() {
   const theme = outletContext?.theme ?? 'light'
   const [list, setList] = useState<SpaceRef[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingElapsed, setLoadingElapsed] = useState(0)
+  const loadingStartRef = useRef<number | null>(null)
 
   const loadList = useCallback(() => {
+    loadingStartRef.current = Date.now()
+    setLoadingElapsed(0)
     setLoading(true)
     get<SpaceRef[]>('/api/me/spaces/list')
       .then(setList)
@@ -34,14 +38,23 @@ export default function CabinetSpacesPage() {
     loadList()
   }, [loadList])
 
+  useEffect(() => {
+    if (!loading) return
+    const start = loadingStartRef.current ?? Date.now()
+    const id = setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [loading])
+
   if (loading) {
-    return (
+    return loadingElapsed >= 1 ? (
       <div className="cabinet-content">
         <div className="cabinet-loading-block">
           <LoadingLogo theme={theme} size={64} variant="smooth" />
         </div>
       </div>
-    )
+    ) : null
   }
 
   return (

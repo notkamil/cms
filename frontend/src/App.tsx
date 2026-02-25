@@ -17,6 +17,7 @@ import StaffSubscriptionsPage from './pages/StaffSubscriptionsPage'
 import StaffBookingsPage from './pages/StaffBookingsPage'
 import BookingsPage from './pages/BookingsPage'
 import MyBookingsPage from './pages/MyBookingsPage'
+import NotFoundPage from './pages/NotFoundPage'
 import './App.css'
 
 function StaffGate() {
@@ -60,6 +61,7 @@ function App() {
               <Route path="subscriptions" element={<StaffRequireAuth><StaffSubscriptionsPage /></StaffRequireAuth>} />
               <Route path="bookings" element={<StaffRequireAuth><StaffBookingsPage /></StaffRequireAuth>} />
             </Route>
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
       </StaffAuthProvider>

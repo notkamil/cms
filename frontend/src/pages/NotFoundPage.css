@@ -1,0 +1,58 @@
+/* Страница 404: тот же хедер, по центру блоки 404 в цветах палитры, без скруглений */
+
+.notfound-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.notfound-block {
+  display: flex;
+  align-items: center;
+  gap: 2.25rem;
+}
+
+.notfound-digit {
+  --notfound-size: 2.7rem;
+  display: grid;
+  grid-template-columns: repeat(3, var(--notfound-size));
+  grid-template-rows: repeat(5, var(--notfound-size));
+  gap: 2px;
+  width: calc(3 * var(--notfound-size) + 2 * 2px);
+  height: calc(5 * var(--notfound-size) + 4 * 2px);
+}
+
+.notfound-cell {
+  border-radius: 0;
+}
+
+.notfound-cell--off {
+  background: transparent;
+}
+
+/* Цвета из логотипа: на светлой теме — более тёмные, на тёмной — более светлые */
+.home .notfound-color-b {
+  background-color: #6c8ebf;
+}
+
+.home .notfound-color-g {
+  background-color: #82b366;
+}
+
+.home .notfound-color-r {
+  background-color: #a94442;
+}
+
+.home[data-theme="dark"] .notfound-color-b {
+  background-color: #8fa8d4;
+}
+
+.home[data-theme="dark"] .notfound-color-g {
+  background-color: #9bc78b;
+}
+
+.home[data-theme="dark"] .notfound-color-r {
+  background-color: #ff8888;
+}

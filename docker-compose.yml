@@ -10,8 +10,39 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # :z on Fedora/RHEL lets the container read the file (SELinux)
       - ./db/ddl.sql:/docker-entrypoint-initdb.d/01-ddl.sql:z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cms -d cms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cms-backend
+    environment:
+      PORT: "8080"
+      DB_URL: jdbc:postgresql://db:5432/cms
+      DB_USER: cms
+      DB_PASSWORD: cms
+      JWT_SECRET: ${JWT_SECRET:-cms-dev-secret-change-in-production}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    container_name: cms-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

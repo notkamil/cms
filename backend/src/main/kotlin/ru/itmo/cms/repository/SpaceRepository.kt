@@ -1,13 +1,16 @@
 package ru.itmo.cms.repository
 
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.neq
-import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import java.time.LocalDateTime
 
 data class SpaceRow(
     val spaceId: Int,
@@ -117,5 +120,29 @@ object SpaceRepository {
             it[SpacesTable.status] = SpaceStatus.disabled
         }
         findById(spaceId)
+    }
+
+    /**
+     * Синхронизирует статусы available/occupied по текущим бронированиям.
+     * Пространства с maintenance и disabled не трогаем.
+     * Вызывать из фонового планировщика.
+     */
+    fun syncSpaceStatusFromBookings(): Unit = transaction {
+        val now = LocalDateTime.now()
+        val rows = BookingsTable.selectAll().where {
+            (BookingsTable.status eq BookingStatus.confirmed) and (BookingsTable.endTime greater now)
+        }.toList()
+        val spaceIdsWithCurrentBooking = rows
+            .filter { it[BookingsTable.startTime] <= now }
+            .map { it[BookingsTable.spaceId] }
+            .toSet()
+        val spaceIdsToSync = SpacesTable.selectAll().where {
+            (SpacesTable.status eq SpaceStatus.available).or(SpacesTable.status eq SpaceStatus.occupied)
+        }.map { it[SpacesTable.spaceId] }
+        spaceIdsToSync.forEach { sid ->
+            SpacesTable.update(where = { SpacesTable.spaceId eq sid }) {
+                it[SpacesTable.status] = if (sid in spaceIdsWithCurrentBooking) SpaceStatus.occupied else SpaceStatus.available
+            }
+        }
     }
 }

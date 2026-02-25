@@ -51,6 +51,44 @@ object StaffRepository {
     }
 
     /**
+     * Создаёт первого суперадмина при первом запуске, если в БД ещё нет ни одного с ролью superadmin.
+     * Данные: email admin@admin.admin, имя Администратор, пароль admin. Дальше пользователь меняет в UI.
+     */
+    fun ensureBootstrapSuperadmin(): Unit = transaction {
+        if (StaffTable.selectAll().where { StaffTable.role eq StaffRole.superadmin }.firstOrNull() != null) return@transaction
+        val email = normalizeEmail("admin@admin.admin")
+        val phone = "+79000000000"
+        if (StaffTable.selectAll().where { StaffTable.email eq email }.firstOrNull() != null) return@transaction
+        if (StaffTable.selectAll().where { StaffTable.phone eq phone }.firstOrNull() != null) return@transaction
+        val passwordHash = BCrypt.withDefaults().hashToString(12, "admin".toCharArray())
+        val staffId = StaffTable.insert {
+            it[StaffTable.name] = "Администратор"
+            it[StaffTable.email] = email
+            it[StaffTable.phone] = phone
+            it[StaffTable.role] = StaffRole.superadmin
+            it[StaffTable.position] = "Администратор"
+            it[StaffTable.passwordHash] = passwordHash
+        } get StaffTable.staffId
+        StaffAuditTable.insert {
+            it[StaffAuditTable.staffId] = staffId
+            it[StaffAuditTable.changedAt] = LocalDateTime.now()
+            it[StaffAuditTable.changedByStaffId] = staffId
+            it[StaffAuditTable.oldName] = ""
+            it[StaffAuditTable.newName] = "Администратор"
+            it[StaffAuditTable.oldEmail] = ""
+            it[StaffAuditTable.newEmail] = email
+            it[StaffAuditTable.oldPhone] = ""
+            it[StaffAuditTable.newPhone] = phone
+            it[StaffAuditTable.oldRole] = StaffRole.inactive
+            it[StaffAuditTable.newRole] = StaffRole.superadmin
+            it[StaffAuditTable.oldPosition] = ""
+            it[StaffAuditTable.newPosition] = "Администратор"
+            it[StaffAuditTable.oldPasswordHash] = ""
+            it[StaffAuditTable.newPasswordHash] = passwordHash
+        }
+    }
+
+    /**
      * Creates a new staff and writes audit (old* = empty/inactive, new* = actual).
      * @throws StaffProfileUpdateException.EmailAlreadyUsed, PhoneAlreadyUsed, PhoneNotE164
      */

@@ -34,6 +34,16 @@ data class BookingTimelineRow(
 
 object BookingRepository {
 
+    /** Пометить завершённые бронирования: status = confirmed и end_time < now → completed. Вызывать из фонового планировщика. */
+    fun markCompletedBookings(): Unit = transaction {
+        val now = LocalDateTime.now()
+        BookingsTable.update(where = {
+            (BookingsTable.status eq BookingStatus.confirmed) and (BookingsTable.endTime less now)
+        }) {
+            it[BookingsTable.status] = BookingStatus.completed
+        }
+    }
+
     /** Количество активных предстоящих бронирований по пространству (status = confirmed, endTime > now). Нужно для проверки перед отключением пространства. */
     fun countActiveUpcomingBookingsForSpace(spaceId: Int): Int = transaction {
         val now = LocalDateTime.now()

@@ -11,8 +11,17 @@ import io.ktor.server.plugins.cors.routing.*
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.slf4j.LoggerFactory
+import ru.itmo.cms.repository.BookingRepository
+import ru.itmo.cms.repository.markExpiredSubscriptions
+import ru.itmo.cms.repository.SpaceRepository
+import ru.itmo.cms.repository.StaffRepository
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import ru.itmo.cms.repository.MembersTable
@@ -37,6 +46,8 @@ fun Application.module() {
     }
     val dataSource = HikariDataSource(hikariConfig)
     Database.connect(dataSource)
+
+    StaffRepository.ensureBootstrapSuperadmin()
 
     val jwtConfig = environment.config.config("jwt")
     val jwtSecret = jwtConfig.property("secret").getString()
@@ -89,6 +100,21 @@ fun Application.module() {
     }
     configureAuthRoutes()
     configureStaffRoutes()
+
+    val statusSyncLog = LoggerFactory.getLogger("StatusSyncJob")
+    GlobalScope.launch(Dispatchers.Default) {
+        while (true) {
+            try {
+                BookingRepository.markCompletedBookings()
+                markExpiredSubscriptions()
+                SpaceRepository.syncSpaceStatusFromBookings()
+            } catch (e: Exception) {
+                statusSyncLog.error("Status sync job failed", e)
+            }
+            delay(60_000)
+        }
+    }
+
     routing {
         get("/") {
             call.respondText("Hello from CMS backend")

@@ -115,6 +115,7 @@ export default function StaffBookingsPage() {
   const [cancelFixedRefundChecked, setCancelFixedRefundChecked] = useState(false)
   const [cancelFixedRefundAmount, setCancelFixedRefundAmount] = useState('0')
   const [cancelReturnMinutes, setCancelReturnMinutes] = useState(true)
+  const [cancelReturnMoney, setCancelReturnMoney] = useState(true)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [editParticipantsBooking, setEditParticipantsBooking] = useState<StaffBookingDetail | null>(null)
   const [editParticipantIds, setEditParticipantIds] = useState<number[]>([])
@@ -232,7 +233,9 @@ export default function StaffBookingsPage() {
       }
       await post(
         `/api/staff/bookings/${viewBooking.id}/cancel`,
-        isFixed ? { refundAmount } : { returnMinutes: cancelReturnMinutes },
+        isFixed
+          ? { refundAmount }
+          : { returnMinutes: cancelReturnMinutes, returnMoney: cancelReturnMoney },
         true
       )
       setShowCancelConfirm(false)
@@ -504,15 +507,6 @@ export default function StaffBookingsPage() {
                         >
                           Закрыть
                         </button>
-                        {canCancel(viewBooking) && (
-                          <button
-                            type="button"
-                            className="cabinet-password-btn"
-                            onClick={handleCancelClick}
-                          >
-                            Отменить бронирование
-                          </button>
-                        )}
                         {viewBooking.status === 'confirmed' &&
                           new Date(viewBooking.startTime) > new Date() && (
                             <button
@@ -523,6 +517,15 @@ export default function StaffBookingsPage() {
                               Изменить участников
                             </button>
                           )}
+                        {canCancel(viewBooking) && (
+                          <button
+                            type="button"
+                            className="cabinet-password-btn"
+                            onClick={handleCancelClick}
+                          >
+                            Отменить бронирование
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -533,7 +536,7 @@ export default function StaffBookingsPage() {
                           ? 'Это бронирование по фикс-подписке. Вместе с ним будет отменена соответствующая подписка'
                           : isPackageSubscription
                             ? 'Вернуть минуты на подписку?'
-                            : 'Подтвердите отмену бронирования.'}
+                            : 'Подтвердите отмену бронирования'}
                       </p>
                       {isFixedBooking && (
                         <>
@@ -575,6 +578,18 @@ export default function StaffBookingsPage() {
                               onChange={(e) => setCancelReturnMinutes(e.target.checked)}
                             />
                             {' '}Вернуть минуты на подписку
+                          </label>
+                        </div>
+                      )}
+                      {!isFixedBooking && viewBooking?.type === 'one_time' && (
+                        <div className="cabinet-modal-field">
+                          <label className="cabinet-modal-label">
+                            <input
+                              type="checkbox"
+                              checked={cancelReturnMoney}
+                              onChange={(e) => setCancelReturnMoney(e.target.checked)}
+                            />
+                            {' '}Вернуть деньги за бронирование
                           </label>
                         </div>
                       )}

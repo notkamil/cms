@@ -380,37 +380,39 @@ object BookingRepository {
         }
     }
 
-    /** Отмена бронирования сотрудником. Для фикс-подписки не вызывать (маршрут возвращает 400 с subscriptionId). returnMinutes — вернуть минуты в пакетную подписку. */
-    fun cancelWithSideEffectsStaff(bookingId: Int, returnMinutes: Boolean) = transaction {
+    /** Отмена бронирования сотрудником. Для фикс-подписки не вызывать. returnMinutes — вернуть минуты в пакетную подписку; returnMoney — вернуть деньги за разовое бронирование. */
+    fun cancelWithSideEffectsStaff(bookingId: Int, returnMinutes: Boolean, returnMoney: Boolean = true) = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
         val startTime = row[BookingsTable.startTime]
         val endTime = row[BookingsTable.endTime]
         val durationMinutes = java.time.Duration.between(startTime, endTime).toMinutes().toInt()
         when (row[BookingsTable.bookingType]) {
             BookingType.one_time -> {
-                val oneOffRow = OneOffsTable.selectAll().where { OneOffsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
-                val oneOffId = oneOffRow[OneOffsTable.oneOffId]
-                val payMemberId = oneOffRow[OneOffsTable.memberId]
-                val toRefundRow = TransactionOneOffsTable.selectAll().where { TransactionOneOffsTable.oneOffId eq oneOffId }.singleOrNull() ?: return@transaction
-                val payTransId = toRefundRow[TransactionOneOffsTable.transactionId]
-                val payTrans = TransactionsTable.selectAll()
-                    .where { (TransactionsTable.transactionId eq payTransId) and (TransactionsTable.transactionType eq TransactionType.payment) }
-                    .singleOrNull() ?: return@transaction
-                val amount = payTrans[TransactionsTable.amount]
-                val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq payMemberId }.singleOrNull() ?: return@transaction
-                val newBalance = memberRow[MembersTable.balance] + amount
-                MembersTable.update(where = { MembersTable.memberId eq payMemberId }) {
-                    it[MembersTable.balance] = newBalance
-                }
-                val space = SpaceRepository.findById(row[BookingsTable.spaceId]) ?: return@transaction
-                val dateTimeFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
-                val desc = "Возврат по бронированию «${space.name}», ${startTime.format(dateTimeFmt)} – ${endTime.format(dateTimeFmt)}"
-                TransactionsTable.insert {
-                    it[TransactionsTable.memberId] = payMemberId
-                    it[TransactionsTable.amount] = amount
-                    it[TransactionsTable.transactionType] = TransactionType.refund
-                    it[TransactionsTable.transactionDate] = LocalDateTime.now()
-                    it[TransactionsTable.description] = desc
+                if (returnMoney) {
+                    val oneOffRow = OneOffsTable.selectAll().where { OneOffsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
+                    val oneOffId = oneOffRow[OneOffsTable.oneOffId]
+                    val payMemberId = oneOffRow[OneOffsTable.memberId]
+                    val toRefundRow = TransactionOneOffsTable.selectAll().where { TransactionOneOffsTable.oneOffId eq oneOffId }.singleOrNull() ?: return@transaction
+                    val payTransId = toRefundRow[TransactionOneOffsTable.transactionId]
+                    val payTrans = TransactionsTable.selectAll()
+                        .where { (TransactionsTable.transactionId eq payTransId) and (TransactionsTable.transactionType eq TransactionType.payment) }
+                        .singleOrNull() ?: return@transaction
+                    val amount = payTrans[TransactionsTable.amount]
+                    val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq payMemberId }.singleOrNull() ?: return@transaction
+                    val newBalance = memberRow[MembersTable.balance] + amount
+                    MembersTable.update(where = { MembersTable.memberId eq payMemberId }) {
+                        it[MembersTable.balance] = newBalance
+                    }
+                    val space = SpaceRepository.findById(row[BookingsTable.spaceId]) ?: return@transaction
+                    val dateTimeFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                    val desc = "Возврат по бронированию «${space.name}», ${startTime.format(dateTimeFmt)} – ${endTime.format(dateTimeFmt)}"
+                    TransactionsTable.insert {
+                        it[TransactionsTable.memberId] = payMemberId
+                        it[TransactionsTable.amount] = amount
+                        it[TransactionsTable.transactionType] = TransactionType.refund
+                        it[TransactionsTable.transactionDate] = LocalDateTime.now()
+                        it[TransactionsTable.description] = desc
+                    }
                 }
             }
             BookingType.subscription -> {

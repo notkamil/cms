@@ -646,18 +646,14 @@ fun Application.configureStaffRoutes() {
                     call.respond(HttpStatusCode.NoContent)
                     return@post
                 }
-                val bookingRow = BookingsTable.selectAll().where { BookingsTable.bookingId eq id }.singleOrNull()
-                    ?: run {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Бронирование не найдено"))
-                        return@post
-                    }
-                if (bookingRow[BookingsTable.status] != BookingStatus.confirmed) {
+                if (info.row.status != BookingStatus.confirmed) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Бронирование уже отменено или завершено"))
                     return@post
                 }
                 val body = call.receiveOrNull<StaffBookingCancelRequest>() ?: StaffBookingCancelRequest()
                 val returnMinutes = body.returnMinutes ?: true
-                BookingRepository.cancelWithSideEffectsStaff(id, returnMinutes)
+                val returnMoney = body.returnMoney ?: true
+                BookingRepository.cancelWithSideEffectsStaff(id, returnMinutes, returnMoney)
                 call.respond(HttpStatusCode.NoContent)
             }
 

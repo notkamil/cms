@@ -190,6 +190,7 @@ data class StaffBookingDetailResponse(
 @Serializable
 data class StaffBookingCancelRequest(
     val returnMinutes: Boolean? = true,
+    val returnMoney: Boolean? = true,
     val refundAmount: Double? = null
 )
 

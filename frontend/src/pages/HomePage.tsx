@@ -101,6 +101,7 @@ export default function HomePage() {
               <NavLink to="/" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`} end>Главная</NavLink>
               <NavLink to="/cabinet" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`}>Личный кабинет</NavLink>
               <NavLink to="/subscriptions" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`}>Подписки</NavLink>
+              <NavLink to="/spaces" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`} end>Пространства</NavLink>
               <NavLink to="/bookings" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`} end>Бронирования</NavLink>
               <NavLink to="/bookings/my" className={({ isActive }) => `home-header-link${isActive ? ' home-header-link--active' : ''}`} end>Мои брони</NavLink>
             </nav>

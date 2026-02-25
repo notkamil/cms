@@ -23,6 +23,7 @@ import ru.itmo.cms.models.SubscriptionResponse
 import ru.itmo.cms.models.AvailableTariffResponse
 import ru.itmo.cms.models.CreateSubscriptionRequest
 import ru.itmo.cms.models.SpaceForBookingsResponse
+import ru.itmo.cms.models.SpaceReferenceResponse
 import ru.itmo.cms.models.BookingTimelineResponse
 import ru.itmo.cms.models.CreateBookingRequest
 import ru.itmo.cms.models.MemberSearchResponse
@@ -405,6 +406,24 @@ fun Application.configureAuthRoutes() {
                     return@get
                 }
                 val list = SpaceRepository.findAllActive().map { SpaceForBookingsResponse(id = it.spaceId, name = it.name, floor = it.floor) }
+                call.respond(list)
+            }
+
+            get("/api/me/spaces/list") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val list = SpaceRepository.findAllAvailableAndOccupied().map {
+                    SpaceReferenceResponse(
+                        id = it.spaceId,
+                        name = it.name,
+                        typeName = it.typeName,
+                        floor = it.floor,
+                        capacity = it.capacity,
+                        description = it.description
+                    )
+                }
                 call.respond(list)
             }
 

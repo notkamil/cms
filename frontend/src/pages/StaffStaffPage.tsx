@@ -561,7 +561,7 @@ export default function StaffStaffPage() {
             <div className="cabinet-modal-form">
               {dismissError && <p className="cabinet-modal-error" role="alert">{dismissError}</p>}
               <p>
-                Вы уверены, что хотите уволить <strong>{targetStaff.name}</strong> ({targetStaff.email})? Роль будет изменена на «Неактивен», вход в систему станет невозможен.
+                Вы уверены, что хотите уволить <strong>{targetStaff.name}</strong> ({targetStaff.email})? Роль будет изменена на «Неактивен», вход в систему станет невозможен
               </p>
               <div className="cabinet-modal-actions">
                 <button type="button" className="cabinet-modal-cancel" onClick={closeModal}>

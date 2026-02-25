@@ -248,8 +248,8 @@ export default function CabinetSubscriptionsPage() {
       <h3 className="cabinet-history-title" style={{ marginTop: '1.5rem', fontSize: '1rem' }}>
         Оформить подписку
       </h3>
-      <p className="cabinet-subscriptions-hint" style={{ marginBottom: '0.75rem', color: 'var(--cabinet-text-muted)', fontSize: '0.9rem' }}>
-        Доступны только тарифы «Фикс» и «Пакет». Почасовой тариф оформляется при бронировании.
+      <p className="cabinet-history-empty" style={{ marginBottom: '0.75rem', color: 'var(--cabinet-text-muted)', fontSize: '0.9rem' }}>
+        Доступны только тарифы «Фикс» и «Пакет». Почасовой тариф оформляется при бронировании
       </p>
       {availableTariffs.length === 0 ? (
         <p className="cabinet-history-empty">Нет доступных тарифов для оформления</p>

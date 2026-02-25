@@ -132,7 +132,7 @@ export default function StaffSubscriptionsPage() {
     <div className="cabinet-content cabinet-content--wider">
       <h2 className="cabinet-history-title">Подписки</h2>
       <p className="cabinet-history-empty" style={{ marginBottom: '1rem', color: 'var(--cabinet-text-muted)', fontSize: '0.9rem' }}>
-        Все подписки пользователей коворкинга.
+        Все подписки пользователей коворкинга
       </p>
       {subscriptions.length === 0 ? (
         <p className="cabinet-history-empty">Нет подписок</p>

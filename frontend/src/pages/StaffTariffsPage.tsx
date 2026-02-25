@@ -700,9 +700,9 @@ export default function StaffTariffsPage() {
             <div className="cabinet-modal-form">
               {deleteError && <p className="cabinet-modal-error" role="alert">{deleteError}</p>}
               {deleteSubscriptionCount > 0 ? (
-                <p>По этому тарифу есть подписки ({deleteSubscriptionCount}). Удалить можно только при отсутствии подписок.</p>
+                <p>По этому тарифу есть подписки ({deleteSubscriptionCount}). Удалить можно только при отсутствии подписок</p>
               ) : (
-                <p>Вы уверены, что хотите удалить этот тариф? Действие нельзя отменить.</p>
+                <p>Вы уверены, что хотите удалить этот тариф? Действие нельзя отменить</p>
               )}
               <div className="cabinet-modal-actions">
                 <button type="button" className="cabinet-modal-cancel" onClick={closeModal}>

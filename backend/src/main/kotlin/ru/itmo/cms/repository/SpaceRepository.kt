@@ -56,6 +56,14 @@ object SpaceRepository {
             .map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
     }
 
+    /** Пространства только available и occupied (для справочника у пользователя; без disabled и maintenance). */
+    fun findAllAvailableAndOccupied(): List<SpaceRow> = transaction {
+        val typeNames = SpaceTypeRepository.findAll().associate { it.spaceTypeId to it.name }
+        SpacesTable.selectAll()
+            .where { (SpacesTable.status eq SpaceStatus.available).or(SpacesTable.status eq SpaceStatus.occupied) }
+            .map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
+    }
+
     fun findById(spaceId: Int): SpaceRow? = transaction {
         val row = SpacesTable.selectAll().where { SpacesTable.spaceId eq spaceId }.singleOrNull() ?: return@transaction null
         val typeName = SpaceTypeRepository.findById(row[SpacesTable.spaceTypeId])!!.name

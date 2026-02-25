@@ -306,7 +306,7 @@ export default function MyBookingsPage() {
                   </ul>
                 )}
               </div>
-              <p className="cabinet-muted">Выбранные участники: {editParticipantIds.length}. Изменение заменит текущий список участников.</p>
+              <p className="cabinet-muted">Выбранные участники: {editParticipantIds.length}. Изменение заменит текущий список участников</p>
               <div className="cabinet-modal-actions">
                 <button type="button" className="cabinet-modal-cancel" onClick={() => setEditBooking(null)}>
                   Отмена

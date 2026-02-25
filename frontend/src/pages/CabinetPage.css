@@ -399,10 +399,8 @@
 
 .cabinet-history-empty {
   margin: 0;
-  padding: 1rem;
+  padding: 0.25rem 0;
   color: var(--cabinet-text-muted);
-  background: var(--cabinet-card-bg);
-  border: 1px solid var(--cabinet-border);
 }
 
 .cabinet-history-table thead th {

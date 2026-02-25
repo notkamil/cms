@@ -5,6 +5,7 @@ import CabinetLayout from './components/CabinetLayout'
 import HomePage from './pages/HomePage'
 import CabinetPage from './pages/CabinetPage'
 import CabinetSubscriptionsPage from './pages/CabinetSubscriptionsPage'
+import CabinetSpacesPage from './pages/CabinetSpacesPage'
 import CmsPage from './pages/CmsPage'
 import { StaffLayout } from './components/StaffLayout'
 import StaffLoginPage from './pages/StaffLoginPage'
@@ -45,6 +46,9 @@ function App() {
             </Route>
             <Route path="/subscriptions" element={<CabinetLayout />}>
               <Route index element={<CabinetSubscriptionsPage />} />
+            </Route>
+            <Route path="/spaces" element={<CabinetLayout />}>
+              <Route index element={<CabinetSpacesPage />} />
             </Route>
             <Route path="/bookings" element={<CabinetLayout />}>
               <Route index element={<BookingsPage />} />

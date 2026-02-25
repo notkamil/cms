@@ -153,6 +153,17 @@ data class SpaceForBookingsResponse(
     val floor: Int
 )
 
+/** Справочник пространств для пользователя: только активные (available/occupied), без статуса. */
+@Serializable
+data class SpaceReferenceResponse(
+    val id: Int,
+    val name: String,
+    val typeName: String,
+    val floor: Int,
+    val capacity: Int,
+    val description: String
+)
+
 @Serializable
 data class BookingTimelineResponse(
     val id: Int,

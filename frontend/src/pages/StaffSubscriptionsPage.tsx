@@ -35,7 +35,7 @@ function formatDate(iso: string): string {
   return d && m && y ? `${d}.${m}.${y}` : iso
 }
 
-/** Остаток подписки: 0 → «Безлимит», иначе «Ч:ММ» */
+/** Subscription remainder: 0 → "Unlimited", else "H:MM" */
 function formatRemainingMinutes(minutes: number): string {
   if (minutes === 0) return 'Безлимит'
   const h = Math.floor(minutes / 60)

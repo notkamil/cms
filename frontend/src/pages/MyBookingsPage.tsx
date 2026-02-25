@@ -199,7 +199,7 @@ export default function MyBookingsPage() {
     }
   }
 
-  /** Отмена доступна: активное, владелец, ещё не началось и не менее чем за cancelBeforeHours до начала. */
+  /** Cancel allowed: confirmed, owner, not started, at least cancelBeforeHours before start. */
   const canCancel = (b: BookingItem) => {
     if (b.status !== 'confirmed' || !b.isCreator) return false
     const now = Date.now()

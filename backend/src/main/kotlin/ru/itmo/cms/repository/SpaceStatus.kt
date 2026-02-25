@@ -9,7 +9,7 @@ enum class SpaceStatus {
     disabled
 }
 
-/** PGobject для записи PostgreSQL enum space_status */
+/** PGobject for PostgreSQL enum space_status */
 class PGSpaceStatus(value: SpaceStatus?) : PGobject() {
     init {
         type = "space_status"

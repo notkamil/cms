@@ -24,7 +24,7 @@ data class SubscriptionRow(
     val status: SubscriptionStatus
 )
 
-/** Строка подписки для списка в админке: с email участника, типом тарифа и суммой оплаты (если есть). */
+/** Subscription row for staff list: member email, tariff type, payment amount if any. */
 data class StaffSubscriptionRow(
     val subscriptionId: Int,
     val memberId: Int,
@@ -39,13 +39,7 @@ data class StaffSubscriptionRow(
     val paymentAmount: BigDecimal?
 )
 
-/**
- * Переводит просроченные подписки (status = active, end_date < сегодня) в expired.
- *
- * Сейчас вызывается при каждом GET /api/me/subscriptions (открытие страницы «Подписки»).
- * Альтернативы: периодическая задача (cron/scheduler) раз в день;
- * или триггер/функция в БД при чтении — если нужен переход в expired даже без визита пользователя.
- */
+/** Mark expired: active subscriptions with end_date < today → expired. Called on GET /api/me/subscriptions. */
 fun markExpiredSubscriptions(): Unit = transaction {
     val today = LocalDate.now()
     SubscriptionsTable.update(where = {
@@ -57,7 +51,7 @@ fun markExpiredSubscriptions(): Unit = transaction {
 
 object SubscriptionRepository {
 
-    /** Статус подписки или null, если не найдена. */
+    /** Subscription status or null if not found. */
     fun getStatus(subscriptionId: Int): SubscriptionStatus? = transaction {
         SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull()?.get(SubscriptionsTable.status)
     }
@@ -113,11 +107,7 @@ object SubscriptionRepository {
         )
     }
 
-    /**
-     * Оформление подписки с оплатой с баланса: проверка баланса, списание, транзакция оплаты, запись в TransactionSubscriptions.
-     * Для фикс-тарифа (fixSpaceId != null) сразу создаётся бронирование на выбранное пространство на весь период.
-     * @return SubscriptionRow при успехе, null при недостатке средств или если участник не найден
-     */
+    /** Create subscription with balance payment: check balance, deduct, payment transaction, TransactionSubscriptions. For fixed tariff (fixSpaceId != null) creates fix booking. Returns SubscriptionRow or null. */
     fun createWithPayment(
         memberId: Int,
         tariffId: Int,
@@ -177,7 +167,7 @@ object SubscriptionRepository {
         )
     }
 
-    /** Список всех подписок для админки: с email участника, типом тарифа и суммой оплаты (если есть транзакция оплаты). */
+    /** All subscriptions for staff: member email, tariff type, payment amount if payment transaction exists. */
     fun findAllForStaff(): List<StaffSubscriptionRow> = transaction {
         markExpiredSubscriptions()
         val tariffsById = TariffRepository.findAll().associateBy { it.tariffId }
@@ -219,9 +209,7 @@ object SubscriptionRepository {
             }
     }
 
-    /**
-     * Сумма оплаты по подписке (из транзакции payment, связанной через TransactionSubscriptions), или null.
-     */
+    /** Payment amount for subscription (from payment transaction via TransactionSubscriptions), or null. */
     fun getPaymentAmountForSubscription(subscriptionId: Int): BigDecimal? = transaction {
         val tsRow = TransactionSubscriptionsTable.selectAll().where { TransactionSubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction null
         val transactionId = tsRow[TransactionSubscriptionsTable.transactionId]
@@ -231,11 +219,7 @@ object SubscriptionRepository {
         row[TransactionsTable.amount]
     }
 
-    /**
-     * Отмена подписки. Если refundAmount != null и > 0 — создаётся транзакция refund и пополняется баланс.
-     * Разрешена для active и expired (чтобы сотрудник мог отменить уже истёкшую подписку и её бронирования).
-     * @return null при успехе, иначе текст ошибки
-     */
+    /** Cancel subscription. If refundAmount > 0, create refund transaction and add to balance. Allowed for active/expired. Returns null on success, else error message. */
     fun cancelSubscription(subscriptionId: Int, refundAmount: BigDecimal?): String? = transaction {
         val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq subscriptionId }.singleOrNull() ?: return@transaction "Подписка не найдена"
         val status = subRow[SubscriptionsTable.status]
@@ -274,7 +258,6 @@ object SubscriptionRepository {
         SubscriptionsTable.update(where = { SubscriptionsTable.subscriptionId eq subscriptionId }) {
             it[SubscriptionsTable.status] = SubscriptionStatus.cancelled
         }
-        // Все подтверждённые бронирования по этой подписке (в т.ч. фикс) переводим в cancelled
         BookingRepository.cancelBookingsBySubscriptionId(subscriptionId)
         null
     }

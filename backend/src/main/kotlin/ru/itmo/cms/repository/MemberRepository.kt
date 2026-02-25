@@ -173,11 +173,7 @@ object MemberRepository {
         }
     }
 
-    /**
-     * Пополнение баланса: увеличивает balance и записывает транзакцию типа deposit.
-     * Сумма должна быть не меньше 0.01.
-     * @return обновлённый MemberRow или null если участник не найден или сумма &lt; 0.01
-     */
+    /** Deposit: increase balance and insert deposit transaction. Amount >= 0.01. Returns updated MemberRow or null. */
     fun deposit(memberId: Int, amount: java.math.BigDecimal): MemberRow? = transaction {
         val minAmount = java.math.BigDecimal("0.01")
         if (amount < minAmount) return@transaction null
@@ -196,10 +192,7 @@ object MemberRepository {
         MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull()?.toMemberRow()
     }
 
-    /**
-     * История транзакций по участнику (новые сверху).
-     * Возвращает список (transactionDate, amount, transactionType, description).
-     */
+    /** Transaction history for member (newest first). */
     fun findTransactionsByMemberId(memberId: Int): List<TransactionRow> = transaction {
         TransactionsTable.selectAll()
             .where { TransactionsTable.memberId eq memberId }
@@ -216,7 +209,7 @@ object MemberRepository {
             }
     }
 
-    /** Поиск участников по email или телефону (подстрока, без учёта регистра для email). Для выбора участников бронирования. */
+    /** Search members by email or phone (substring, case-insensitive for email). For booking participant choice. */
     fun searchByEmailOrPhone(query: String): List<MemberRow> = transaction {
         val q = query.trim()
         if (q.isEmpty()) return@transaction emptyList()

@@ -264,7 +264,7 @@ export default function StaffStaffPage() {
     return <Navigate to="/staff" replace />
   }
 
-  /* Суперадмина через UI добавить нельзя; суперадмин может создавать только admin/staff */
+  /* Superadmin cannot be added via UI; superadmin can create only admin/staff */
   const roleOptions =
     staffUser.role === 'superadmin'
       ? ROLE_OPTIONS.filter((o) => o.value !== 'superadmin')

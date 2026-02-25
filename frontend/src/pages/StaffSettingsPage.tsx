@@ -39,14 +39,14 @@ interface StaffSettings {
   workingHours: WorkingHoursDay[]
 }
 
-/** Варианты часового пояса: подпись и значение для API (ZoneId: UTC или +HH:00 / -HH:00). */
+/** Timezone options: label and API value (ZoneId: UTC or +HH:00/-HH:00). */
 const UTC_OFFSET_OPTIONS: { label: string; value: string }[] = [
   { label: 'UTC', value: 'UTC' },
   ...Array.from({ length: 12 }, (_, i) => ({ label: `UTC+${i + 1}`, value: `+${String(i + 1).padStart(2, '0')}:00` })),
   ...Array.from({ length: 12 }, (_, i) => ({ label: `UTC-${i + 1}`, value: `-${String(i + 1).padStart(2, '0')}:00` })),
 ]
 
-/** Привести значение с бэкенда (IANA или offset) к одному из наших value для селекта. */
+/** Normalize backend value (IANA or offset) to one of our select values. */
 function normalizeTimezoneForSelect(tz: string): string {
   if (!tz) return 'UTC'
   const normalized = tz.trim()

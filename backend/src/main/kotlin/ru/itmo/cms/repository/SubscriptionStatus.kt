@@ -8,7 +8,7 @@ enum class SubscriptionStatus {
     cancelled
 }
 
-/** PGobject для записи PostgreSQL enum subscription_status */
+/** PGobject for PostgreSQL enum subscription_status */
 class PGSubscriptionStatus(value: SubscriptionStatus?) : PGobject() {
     init {
         type = "subscription_status"

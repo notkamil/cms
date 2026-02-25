@@ -48,12 +48,12 @@ object TariffRepository {
             ?.toTariffRow()
     }
 
-    /** Всего подписок по тарифу (любой статус) */
+    /** Total subscriptions for tariff (any status). */
     fun countSubscriptions(tariffId: Int): Int = transaction {
         SubscriptionsTable.selectAll().where { SubscriptionsTable.tariffId eq tariffId }.toList().size
     }
 
-    /** Активных подписок (status = active) по тарифу */
+    /** Active subscriptions (status = active) for tariff. */
     fun countActiveSubscriptions(tariffId: Int): Int = transaction {
         SubscriptionsTable.selectAll()
             .where { (SubscriptionsTable.tariffId eq tariffId) and (SubscriptionsTable.status eq SubscriptionStatus.active) }
@@ -80,13 +80,7 @@ object TariffRepository {
         findById(id)!!
     }
 
-    /**
-     * Обновление тарифа.
-     * Тип менять нельзя.
-     * Длительность, включённые часы, цену — только если нет активных подписок.
-     * Название — если нет конфликтов.
-     * Активность можно менять всегда.
-     */
+    /** Update tariff. Type cannot change. Duration/hours/price only when no active subscriptions. Name when no conflict. isActive always. */
     fun update(
         tariffId: Int,
         name: String? = null,

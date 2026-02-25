@@ -43,7 +43,7 @@ function formatIncludedHours(hours: number): string {
   return hours === 0 ? 'Безлимит' : String(hours)
 }
 
-/** Валидация цены: неотрицательно, не более двух знаков после запятой (как пополнение баланса). Ноль разрешён. */
+/** Price validation: non-negative, up to 2 decimals; zero allowed. */
 function validatePrice(value: string): string | null {
   const trimmed = value.trim()
   if (!trimmed) return 'Укажите цену'
@@ -86,7 +86,7 @@ export default function StaffTariffsPage() {
   const [editError, setEditError] = useState<string | null>(null)
   const [editLoading, setEditLoading] = useState(false)
 
-  const [deleteSubscriptionCount, setDeleteSubscriptionCount] = useState(0) // всего подписок по тарифу
+  const [deleteSubscriptionCount, setDeleteSubscriptionCount] = useState(0)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
@@ -309,7 +309,6 @@ export default function StaffTariffsPage() {
       setAssignments(list)
       setMatrixEditMode(false)
     } catch {
-      // could set error state
     } finally {
       setMatrixSaving(false)
     }

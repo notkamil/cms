@@ -78,7 +78,7 @@ interface Space {
   floor: number
 }
 
-/** Полные данные пространства для модалки (админ — со статусом) */
+/** Full space data for modal (staff, with status). */
 interface SpaceFull {
   id: number
   name: string

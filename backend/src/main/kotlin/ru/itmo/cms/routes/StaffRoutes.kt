@@ -79,34 +79,34 @@ fun Application.configureStaffRoutes() {
                 call.respond(StaffAuthResponse(token = token, staff = staff.toStaffResponse()))
             } catch (e: Exception) {
                 call.application.log.error("Staff login failed", e)
-                call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
             }
         }
 
         authenticate("jwt-staff") {
             get("/api/staff/me") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val staffId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@get
                 }
                 val staff = StaffRepository.findById(staffId)
                     ?: run {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
                         return@get
                     }
                 call.respond(staff.toStaffResponse())
             }
             patch("/api/staff/me") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@patch
                 }
                 val staffId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@patch
                 }
                 val body = call.receive<PatchStaffMeRequest>()
@@ -132,17 +132,17 @@ fun Application.configureStaffRoutes() {
                             call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Телефон в формате +79001234567")))
                         is StaffProfileUpdateException.NothingChanged ->
                             call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Ничего не изменено")))
-                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
                     }
                 }
             }
             put("/api/staff/me/password") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@put
                 }
                 val staffId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@put
                 }
                 val body = call.receive<PutPasswordRequest>()
@@ -162,16 +162,16 @@ fun Application.configureStaffRoutes() {
             // ----- Staff list (admin/superadmin only) -----
             get("/api/staff/staff") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val currentId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@get
                 }
                 val current = StaffRepository.findById(currentId)
                     ?: run {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
                         return@get
                     }
                 if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
@@ -183,16 +183,16 @@ fun Application.configureStaffRoutes() {
             }
             post("/api/staff/staff") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@post
                 }
                 val currentId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@post
                 }
                 val current = StaffRepository.findById(currentId)
                     ?: run {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
                         return@post
                     }
                 if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
@@ -236,29 +236,29 @@ fun Application.configureStaffRoutes() {
                 } catch (e: StaffProfileUpdateException) {
                     when (e) {
                         is StaffProfileUpdateException.InvalidInput ->
-                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
                         is StaffProfileUpdateException.EmailAlreadyUsed ->
-                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Email already used")))
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Email уже используется")))
                         is StaffProfileUpdateException.PhoneAlreadyUsed ->
-                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Phone already used")))
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Телефон уже используется")))
                         is StaffProfileUpdateException.PhoneNotE164 ->
-                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Invalid phone")))
-                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный формат телефона")))
+                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
                     }
                 }
             }
             patch("/api/staff/staff/{id}") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@patch
                 }
                 val currentId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@patch
                 }
                 val current = StaffRepository.findById(currentId)
                     ?: run {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
                         return@patch
                     }
                 if (current.role == StaffRole.staff) {
@@ -270,7 +270,7 @@ fun Application.configureStaffRoutes() {
                     return@patch
                 }
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@patch
                 }
                 val target = StaffRepository.findById(id)
@@ -320,14 +320,14 @@ fun Application.configureStaffRoutes() {
                 } catch (e: StaffProfileUpdateException) {
                     when (e) {
                         is StaffProfileUpdateException.NothingChanged ->
-                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Nothing changed")))
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Нет изменений")))
                         is StaffProfileUpdateException.EmailAlreadyUsed ->
-                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Email already used")))
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Email уже используется")))
                         is StaffProfileUpdateException.PhoneAlreadyUsed ->
-                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Phone already used")))
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Телефон уже используется")))
                         is StaffProfileUpdateException.PhoneNotE164 ->
-                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Invalid phone")))
-                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный формат телефона")))
+                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
                     }
                 } catch (e: NoSuchElementException) {
                     call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
@@ -335,16 +335,16 @@ fun Application.configureStaffRoutes() {
             }
             post("/api/staff/staff/{id}/dismiss") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@post
                 }
                 val currentId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@post
                 }
                 val current = StaffRepository.findById(currentId)
                     ?: run {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
                         return@post
                     }
                 if (current.role == StaffRole.staff) {
@@ -356,7 +356,7 @@ fun Application.configureStaffRoutes() {
                     return@post
                 }
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@post
                 }
                 val target = StaffRepository.findById(id)
@@ -404,7 +404,7 @@ fun Application.configureStaffRoutes() {
             }
             get("/api/staff/space-types/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 val row = SpaceTypeRepository.findById(id)
@@ -416,7 +416,7 @@ fun Application.configureStaffRoutes() {
             }
             patch("/api/staff/space-types/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@patch
                 }
                 val current = SpaceTypeRepository.findById(id)
@@ -450,7 +450,7 @@ fun Application.configureStaffRoutes() {
             }
             get("/api/staff/space-types/{id}/spaces") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 if (SpaceTypeRepository.findById(id) == null) {
@@ -463,7 +463,7 @@ fun Application.configureStaffRoutes() {
             }
             delete("/api/staff/space-types/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@delete
                 }
                 val current = SpaceTypeRepository.findById(id)
@@ -521,7 +521,7 @@ fun Application.configureStaffRoutes() {
             }
             get("/api/staff/spaces/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 val row = SpaceRepository.findById(id)
@@ -533,7 +533,7 @@ fun Application.configureStaffRoutes() {
             }
             patch("/api/staff/spaces/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@patch
                 }
                 val current = SpaceRepository.findById(id)
@@ -577,7 +577,7 @@ fun Application.configureStaffRoutes() {
             }
             delete("/api/staff/spaces/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@delete
                 }
                 val space = SpaceRepository.findById(id)
@@ -623,7 +623,7 @@ fun Application.configureStaffRoutes() {
             }
             get("/api/staff/amenities/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 val row = AmenityRepository.findById(id)
@@ -635,7 +635,7 @@ fun Application.configureStaffRoutes() {
             }
             patch("/api/staff/amenities/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@patch
                 }
                 val current = AmenityRepository.findById(id)
@@ -665,7 +665,7 @@ fun Application.configureStaffRoutes() {
             }
             get("/api/staff/amenities/{id}/spaces") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 if (AmenityRepository.findById(id) == null) {
@@ -678,7 +678,7 @@ fun Application.configureStaffRoutes() {
             }
             delete("/api/staff/amenities/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@delete
                 }
                 val current = AmenityRepository.findById(id)
@@ -773,7 +773,7 @@ fun Application.configureStaffRoutes() {
             }
             get("/api/staff/tariffs/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 val row = TariffRepository.findById(id)
@@ -785,7 +785,7 @@ fun Application.configureStaffRoutes() {
             }
             patch("/api/staff/tariffs/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@patch
                 }
                 val current = TariffRepository.findById(id)
@@ -851,7 +851,7 @@ fun Application.configureStaffRoutes() {
             }
             delete("/api/staff/tariffs/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@delete
                 }
                 val current = TariffRepository.findById(id)
@@ -948,7 +948,7 @@ fun Application.configureStaffRoutes() {
             }
             get("/api/staff/bookings/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 val zone = SettingsRepository.getAppSettings().zoneId
@@ -961,7 +961,7 @@ fun Application.configureStaffRoutes() {
             }
             patch("/api/staff/bookings/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@patch
                 }
                 val zoneId = SettingsRepository.getAppSettings().zoneId
@@ -976,7 +976,7 @@ fun Application.configureStaffRoutes() {
             }
             post("/api/staff/bookings/{id}/cancel") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@post
                 }
                 val info = BookingRepository.findByIdForStaff(id)
@@ -989,8 +989,8 @@ fun Application.configureStaffRoutes() {
                     val refundAmount = body.refundAmount?.let { BigDecimal.valueOf(it) }
                     val errorMessage = SubscriptionRepository.cancelSubscription(info.subscriptionId!!, refundAmount)
                     when {
-                        errorMessage == null -> { /* подписка отменена */ }
-                        errorMessage == "Подписка уже отменена" -> { /* только снимаем бронирование */ }
+                        errorMessage == null -> { }
+                        errorMessage == "Подписка уже отменена" -> { }
                         else -> {
                             call.respond(HttpStatusCode.BadRequest, mapOf("error" to errorMessage))
                             return@post
@@ -1024,7 +1024,7 @@ fun Application.configureStaffRoutes() {
             }
             post("/api/staff/subscriptions/{id}/cancel") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@post
                 }
                 val body = call.receive<CancelSubscriptionRequest>()

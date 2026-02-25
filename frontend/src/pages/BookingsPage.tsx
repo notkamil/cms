@@ -13,7 +13,7 @@ registerLocale('ru', { ...ru, options: { weekStartsOn: 1 } })
 const PX_PER_MINUTE = 2
 const TICK_PADDING = 12
 
-/** Смещение таймзоны в мс в момент date (положительное = TZ впереди UTC). */
+/** Timezone offset in ms at date (positive = TZ ahead of UTC). */
 function getTimezoneOffsetMs(date: Date, timeZone: string): number {
   try {
     const parts = new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'longOffset' }).formatToParts(date)
@@ -30,7 +30,7 @@ function getTimezoneOffsetMs(date: Date, timeZone: string): number {
   }
 }
 
-/** Границы выбранного дня в таймзоне коворкинга (мс). */
+/** Selected day bounds in workspace TZ (ms). */
 function dayBoundsMs(selectedDate: string, timeZone: string): { start: number; end: number } {
   const noonUtc = new Date(selectedDate + 'T12:00:00.000Z').getTime()
   const offsetMs = getTimezoneOffsetMs(new Date(noonUtc), timeZone)
@@ -39,14 +39,14 @@ function dayBoundsMs(selectedDate: string, timeZone: string): { start: number; e
   return { start, end }
 }
 
-/** ISO день недели (1=Пн, 7=Вс) для даты YYYY-MM-DD. */
+/** ISO day of week (1=Mon, 7=Sun) for YYYY-MM-DD. */
 function getDayOfWeek(isoDate: string): number {
   const d = new Date(isoDate + 'T12:00:00')
   const day = d.getDay()
   return day === 0 ? 7 : day
 }
 
-/** Сегмент бронирования на выбранный день: left (px), width (px), startM/endM в минутах от начала рабочих часов дня. */
+/** Booking segment for selected day: left/width px, startM/endM minutes from day work start. */
 function bookingSegmentOnDay(
   startTime: string,
   endTime: string,
@@ -77,7 +77,7 @@ interface Space {
   floor: number
 }
 
-/** Данные пространства для модалки (как у пользователя — без статуса) */
+/** Space data for modal (user view, no status). */
 interface SpaceRef {
   id: number
   name: string
@@ -140,7 +140,7 @@ function parseTimeToMinutesFromMidnight(hhmm: string): number {
   return (h ?? 0) * 60 + (m ?? 0)
 }
 
-/** Минуты от полуночи по времени из ISO-строки (сервер отдаёт в таймзоне коворкинга). */
+/** Minutes from midnight from ISO time string (server uses workspace TZ). */
 function parseISOMinutes(iso: string | undefined): number {
   if (!iso || typeof iso !== 'string') return 0
   const m = iso.match(/T(\d{2}):(\d{2})/)
@@ -154,7 +154,7 @@ function formatTime(minutesFromMidnight: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-/** ISO дата "YYYY-MM-DD" → "DD.MM.YYYY" */
+/** Format ISO date YYYY-MM-DD to DD.MM.YYYY */
 function formatISODate(iso: string | undefined): string {
   if (!iso || typeof iso !== 'string') return '—'
   const [y, m, d] = iso.slice(0, 10).split('-')
@@ -171,7 +171,7 @@ function getBookingColor(b: Booking): string {
   return 'var(--booking-other, #757575)'
 }
 
-/** Отмена доступна: активное, владелец, ещё не началось и не менее чем за cancelBeforeHours до начала. */
+/** Cancel allowed: confirmed, owner, not started, at least cancelBeforeHours before start. */
 function canCancelBooking(b: Booking, cancelBeforeHours: number): boolean {
   if (b.status !== 'confirmed' || !b.isCreator) return false
   const now = Date.now()

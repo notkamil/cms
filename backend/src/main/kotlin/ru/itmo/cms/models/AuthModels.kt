@@ -51,7 +51,7 @@ data class DepositRequest(
     val amount: String
 )
 
-/** Ответ с данными сотрудника (без пароля) */
+/** Staff data response (no password). */
 @Serializable
 data class StaffResponse(
     val id: Int,
@@ -62,14 +62,14 @@ data class StaffResponse(
     val position: String
 )
 
-/** Ответ при логине в админку: токен + данные сотрудника */
+/** Staff login response: token + staff data. */
 @Serializable
 data class StaffAuthResponse(
     val token: String,
     val staff: StaffResponse
 )
 
-/** Создание сотрудника (страница «Сотрудники») */
+/** Create staff request (Staff page). */
 @Serializable
 data class CreateStaffRequest(
     val name: String,
@@ -80,7 +80,7 @@ data class CreateStaffRequest(
     val password: String
 )
 
-/** Редактирование сотрудника (без смены пароля) */
+/** Update staff (no password change). */
 @Serializable
 data class UpdateStaffRequest(
     val name: String? = null,
@@ -90,7 +90,7 @@ data class UpdateStaffRequest(
     val position: String? = null
 )
 
-/** Изменение своих данных в личном кабинете сотрудника (роль не меняется) */
+/** Staff self-update (role unchanged). */
 @Serializable
 data class PatchStaffMeRequest(
     val name: String? = null,
@@ -100,7 +100,7 @@ data class PatchStaffMeRequest(
     val currentPassword: String
 )
 
-/** Элемент истории транзакций: время, изменение баланса (положительное — приход, отрицательное — расход), комментарий */
+/** Transaction history item: date, balance change (+income, -expense), description. */
 @Serializable
 data class TransactionResponse(
     val transactionDate: String,
@@ -140,7 +140,7 @@ data class AvailableTariffResponse(
 data class CreateSubscriptionRequest(
     val tariffId: Int,
     val startDate: String? = null,
-    /** Обязателен для тарифа «Фикс»: пространство на весь период подписки */
+    /** Required for fixed tariff: space for subscription period. */
     val spaceId: Int? = null
 )
 
@@ -153,7 +153,7 @@ data class SpaceForBookingsResponse(
     val floor: Int
 )
 
-/** Справочник пространств для пользователя: только активные (available/occupied), без статуса. */
+/** Space reference for user: active (available/occupied) only. */
 @Serializable
 data class SpaceReferenceResponse(
     val id: Int,
@@ -423,7 +423,7 @@ data class WorkingHoursDayResponse(
     val closingTime: String
 )
 
-/** Настройки для полотна бронирований и проверок (GET /api/me/settings). */
+/** Settings for booking canvas and checks (GET /api/me/settings). */
 @Serializable
 data class BookingSettingsResponse(
     val timezone: String,
@@ -435,7 +435,7 @@ data class BookingSettingsResponse(
     val cancelBeforeHours: Int
 )
 
-/** Полные настройки для админки (GET/PATCH /api/staff/settings). */
+/** Full settings for staff (GET/PATCH /api/staff/settings). */
 @Serializable
 data class StaffSettingsResponse(
     val workingHours24_7: Boolean,

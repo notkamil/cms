@@ -48,7 +48,7 @@ object SpaceRepository {
         SpacesTable.selectAll().map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
     }
 
-    /** Пространства с статусом != disabled (для бронирований, подписок, выбора пространства). */
+    /** Spaces with status != disabled (for bookings, subscriptions, space choice). */
     fun findAllActive(): List<SpaceRow> = transaction {
         val typeNames = SpaceTypeRepository.findAll().associate { it.spaceTypeId to it.name }
         SpacesTable.selectAll()
@@ -56,7 +56,7 @@ object SpaceRepository {
             .map { it.toSpaceRow(typeNames[it[SpacesTable.spaceTypeId]]!!) }
     }
 
-    /** Пространства только available и occupied (для справочника у пользователя; без disabled и maintenance). */
+    /** Spaces available and occupied only (user reference; no disabled/maintenance). */
     fun findAllAvailableAndOccupied(): List<SpaceRow> = transaction {
         val typeNames = SpaceTypeRepository.findAll().associate { it.spaceTypeId to it.name }
         SpacesTable.selectAll()
@@ -121,7 +121,7 @@ object SpaceRepository {
         findById(spaceId)
     }
 
-    /** Мягкое удаление: устанавливает status = disabled. Сохраняет историю (бронирования, тарифы). */
+    /** Soft delete: set status = disabled. Keeps history (bookings, tariffs). */
     fun setDisabled(spaceId: Int): SpaceRow? = transaction {
         val row = SpacesTable.selectAll().where { SpacesTable.spaceId eq spaceId }.singleOrNull() ?: return@transaction null
         SpacesTable.update(where = { SpacesTable.spaceId eq spaceId }) {
@@ -130,11 +130,7 @@ object SpaceRepository {
         findById(spaceId)
     }
 
-    /**
-     * Синхронизирует статусы available/occupied по текущим бронированиям.
-     * Пространства с maintenance и disabled не трогаем.
-     * Вызывать из фонового планировщика.
-     */
+    /** Sync available/occupied from current bookings. maintenance/disabled unchanged. Call from scheduler. */
     fun syncSpaceStatusFromBookings(): Unit = transaction {
         val now = LocalDateTime.now()
         val rows = BookingsTable.selectAll().where {

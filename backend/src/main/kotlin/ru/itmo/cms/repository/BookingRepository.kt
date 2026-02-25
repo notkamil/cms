@@ -18,7 +18,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-/** Бронирование для таймлайна: с флагами isCreator/isParticipant для текущего пользователя. */
+/** Booking row for timeline with isCreator/isParticipant for current user. */
 data class BookingTimelineRow(
     val bookingId: Int,
     val spaceId: Int,
@@ -37,7 +37,7 @@ data class BookingTimelineRow(
 
 object BookingRepository {
 
-    /** Пометить завершённые бронирования: status = confirmed и end_time < now → completed. Вызывать из фонового планировщика. */
+    /** Mark completed: status=confirmed and end_time < now → completed. Called from scheduler. */
     fun markCompletedBookings(): Unit = transaction {
         val now = LocalDateTime.now()
         BookingsTable.update(where = {
@@ -47,7 +47,7 @@ object BookingRepository {
         }
     }
 
-    /** Количество активных предстоящих бронирований по пространству (status = confirmed, endTime > now). Нужно для проверки перед отключением пространства. */
+    /** Count active upcoming bookings for space (confirmed, endTime > now). Used before disabling space. */
     fun countActiveUpcomingBookingsForSpace(spaceId: Int): Int = transaction {
         val now = LocalDateTime.now()
         BookingsTable.selectAll().where {
@@ -57,7 +57,7 @@ object BookingRepository {
         }.toList().size
     }
 
-    /** Бронирования в диапазоне [from, to) для таймлайна. creatorEmail/participantEmails заполнены только для своих/участниковых. */
+    /** Bookings in [from, to) for timeline. creatorEmail/participantEmails only for own/participant. */
     fun listForDateRange(from: LocalDateTime, to: LocalDateTime, memberId: Int): List<BookingTimelineRow> = transaction {
         val spacesById = SpaceRepository.findAll().associateBy { it.spaceId }
         val allMemberIds = mutableSetOf<Int>()
@@ -101,7 +101,7 @@ object BookingRepository {
         }
     }
 
-    /** Бронирования в диапазоне [from, to) для админки: все бронирования, всегда с email создателя и участников. */
+    /** Bookings in [from, to) for staff: all bookings with creator/participant emails. */
     fun listForDateRangeStaff(from: LocalDateTime, to: LocalDateTime): List<BookingTimelineRow> = transaction {
         val spacesById = SpaceRepository.findAll().associateBy { it.spaceId }
         val allMemberIds = mutableSetOf<Int>()
@@ -142,7 +142,7 @@ object BookingRepository {
         }
     }
 
-    /** Бронирование по id с информацией о подписке (subscriptionId, tariffType) для админки. */
+    /** Booking by id with subscription info (subscriptionId, tariffType) for staff. */
     data class BookingWithSubscriptionInfo(
         val row: BookingTimelineRow,
         val subscriptionId: Int?,
@@ -160,11 +160,7 @@ object BookingRepository {
         BookingWithSubscriptionInfo(row, subId, tariffType)
     }
 
-    /**
-     * Создать бронирование по фикс-подписке: одно пространство на весь период [startDate, endDate].
-     * Вызывать только изнутри существующей транзакции (например, из createWithPayment).
-     * Не списывает remainingMinutes. Не проверяет 15-мин гранулярность.
-     */
+    /** Create fix-subscription booking: one space for [startDate, endDate]. Call inside existing transaction. */
     fun createFixBooking(
         memberId: Int,
         spaceId: Int,
@@ -189,10 +185,7 @@ object BookingRepository {
         return bookingId
     }
 
-    /**
-     * Перевести в cancelled все подтверждённые бронирования, привязанные к подписке.
-     * Вызывать при отмене подписки из админки (в т.ч. фикс: подписка и бронирование отменяются вместе).
-     */
+    /** Set status cancelled for all confirmed bookings linked to subscription. Call when cancelling subscription from staff. */
     fun cancelBookingsBySubscriptionId(subscriptionId: Int) = transaction {
         val bookingIds = BookingSubscriptionsTable.selectAll()
             .where { BookingSubscriptionsTable.subscriptionId eq subscriptionId }
@@ -206,7 +199,7 @@ object BookingRepository {
         }
     }
 
-    /** Есть ли у подписки хотя бы одно привязанное бронирование (таблица BookingSubscriptions). */
+    /** Whether subscription has at least one linked booking (BookingSubscriptions). */
     fun hasBookingForSubscription(subscriptionId: Int): Boolean = transaction {
         BookingSubscriptionsTable.selectAll()
             .where { BookingSubscriptionsTable.subscriptionId eq subscriptionId }
@@ -215,7 +208,7 @@ object BookingRepository {
             .isNotEmpty()
     }
 
-    /** Есть ли пересечение по пространству и времени (стык конец=начало разрешён). */
+    /** Whether there is overlap in space and time (touching end=start allowed). */
     fun hasOverlap(spaceId: Int, startTime: LocalDateTime, endTime: LocalDateTime, excludeBookingId: Int?): Boolean = transaction {
         val overlapping = BookingsTable.selectAll().where {
             (BookingsTable.spaceId eq spaceId) and
@@ -227,7 +220,7 @@ object BookingRepository {
         filtered.isNotEmpty()
     }
 
-    /** Создать бронирование. Гранулярность по slotMinutes, без пересечений, проверка рабочих часов (кроме фикс-подписки), подписка: списать минуты; one_off: создать OneOff+транзакция. now берётся в zoneId. */
+    /** Create booking: slot granularity, no overlap, working hours check (except fix-sub), subscription: deduct minutes; one_off: OneOff+transaction. */
     fun create(
         memberId: Int,
         spaceId: Int,
@@ -366,14 +359,13 @@ object BookingRepository {
         }
     }
 
-    /** Причина, по которой отмену нельзя выполнить; null — отмена возможна. cancelBeforeMinutes — минимум минут до начала; now берётся в zoneId. */
+    /** Reason cancel is not allowed; null if cancel is allowed. cancelBeforeMinutes = min minutes before start. */
     fun cancelFailureReason(bookingId: Int, memberId: Int, cancelBeforeMinutes: Int, zoneId: ZoneId): String? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
             ?: return@transaction "Бронирование не найдено"
         if (row[BookingsTable.status] != BookingStatus.confirmed) return@transaction "Бронирование уже отменено или завершено"
         val creatorId = row[BookingsTable.createdBy]
         if (memberId != creatorId) return@transaction "Отменить бронирование может только владелец"
-        // Бронирование по фикс-подписке отменяется только через админку
         if (row[BookingsTable.bookingType] == BookingType.subscription) {
             val bsRow = BookingSubscriptionsTable.selectAll().where { BookingSubscriptionsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction null
             val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq bsRow[BookingSubscriptionsTable.subscriptionId] }.singleOrNull() ?: return@transaction null
@@ -391,7 +383,7 @@ object BookingRepository {
         null
     }
 
-    /** Выполнить отмену бронирования с возвратом (one_time) или возвратом минут (подписка-пакет). Вызывать после проверки через cancelFailureReason. */
+    /** Perform cancel with refund (one_time) or return minutes (package subscription). Call after cancelFailureReason check. */
     fun cancelWithSideEffects(bookingId: Int, memberId: Int) = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
         val startTime = row[BookingsTable.startTime]
@@ -442,7 +434,7 @@ object BookingRepository {
         }
     }
 
-    /** Отмена бронирования сотрудником. Для фикс-подписки не вызывать. returnMinutes — вернуть минуты в пакетную подписку; returnMoney — вернуть деньги за разовое бронирование. */
+    /** Staff cancel booking. Do not use for fix subscription. returnMinutes/returnMoney for package/one_time refund. */
     fun cancelWithSideEffectsStaff(bookingId: Int, returnMinutes: Boolean, returnMoney: Boolean = true) = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
         val startTime = row[BookingsTable.startTime]
@@ -495,7 +487,7 @@ object BookingRepository {
         }
     }
 
-    /** Только перевести бронирование в cancelled (без возврата и без возврата минут). Для «сирот» — бронирований по уже закрытой подписке. */
+    /** Set booking to cancelled only (no refund, no return minutes). For orphans (closed subscription). */
     fun cancelBookingOnly(bookingId: Int) = transaction {
         BookingsTable.update(where = { BookingsTable.bookingId eq bookingId }) {
             it[BookingsTable.status] = BookingStatus.cancelled
@@ -529,7 +521,7 @@ object BookingRepository {
         )
     }
 
-    /** Все бронирования пользователя (создатель или участник): current = активные/ожидаемые, archive = прошедшие + отменённые. */
+    /** User bookings (creator or participant): current = active/pending, archive = past + cancelled. */
     fun listMyBookings(memberId: Int): Pair<List<BookingTimelineRow>, List<BookingTimelineRow>> = transaction {
         val now = LocalDateTime.now()
         val all = listForDateRange(LocalDateTime.of(2000, 1, 1, 0, 0), LocalDateTime.of(2100, 1, 1, 0, 0), memberId)
@@ -539,7 +531,7 @@ object BookingRepository {
         Pair(current.sortedBy { it.startTime }, archive.sortedByDescending { it.startTime })
     }
 
-    /** Обновить участников бронирования (только создатель, только подтверждённое, ещё не началось). now в zoneId. */
+    /** Update booking participants (creator only, confirmed, not started yet). */
     fun updateParticipantsFailureReason(bookingId: Int, memberId: Int, zoneId: ZoneId): String? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
             ?: return@transaction "Бронирование не найдено"
@@ -560,7 +552,7 @@ object BookingRepository {
         }
     }
 
-    /** Проверка возможности редактирования участников сотрудником; null — можно. now в zoneId. */
+    /** Check if staff can edit participants; null if allowed. */
     fun updateParticipantsForStaffFailureReason(bookingId: Int, zoneId: ZoneId): String? = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull()
             ?: return@transaction "Бронирование не найдено"
@@ -570,7 +562,7 @@ object BookingRepository {
         null
     }
 
-    /** Обновить участников бронирования (сотрудник; без проверки создателя). */
+    /** Update booking participants (staff; no creator check). */
     fun updateParticipantsForStaff(bookingId: Int, participantMemberIds: List<Int>) = transaction {
         val row = BookingsTable.selectAll().where { BookingsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction
         val creatorId = row[BookingsTable.createdBy]

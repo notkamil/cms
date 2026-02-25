@@ -10,7 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import java.time.LocalTime
 import java.time.ZoneId
 
-/** Ключи настроек в SystemSettings. */
+/** Keys in SystemSettings table. */
 object SettingsKeys {
     const val WORKING_HOURS_24_7 = "WorkingHours24_7"
     const val TIMEZONE = "Timezone"
@@ -20,7 +20,7 @@ object SettingsKeys {
     const val CANCEL_BEFORE_HOURS = "CancelBeforeHours"
 }
 
-/** Значения по умолчанию. */
+/** Default values. */
 object SettingsDefaults {
     const val WORKING_HOURS_24_7 = "false"
     const val TIMEZONE = "+03:00"
@@ -32,7 +32,7 @@ object SettingsDefaults {
     const val CLOSING_TIME = "21:00"
 }
 
-/** Настройки приложения для бронирований и отображения. */
+/** App settings for bookings and display. */
 data class AppSettings(
     val workingHours24_7: Boolean,
     val timezone: String,
@@ -41,11 +41,11 @@ data class AppSettings(
     val maxBookingDaysAhead: Int,
     val minBookingMinutes: Int,
     val cancelBeforeHours: Int,
-    /** День 1–7 (ISO: 1=Пн, 7=Вс) -> (opening, closing). */
+    /** Day 1–7 (ISO: 1=Mon, 7=Sun) -> (opening, closing). */
     val workingHoursByDay: Map<Int, Pair<LocalTime, LocalTime>>
 )
 
-/** Одна строка рабочих часов. */
+/** Single working-hours row. */
 data class WorkingHoursRow(
     val dayOfWeek: Int,
     val openingTime: LocalTime,
@@ -149,7 +149,7 @@ object SettingsRepository {
         }
     }
 
-    /** Вставить настройки по умолчанию, если таблицы пусты. */
+    /** Insert default settings when tables are empty. */
     fun ensureDefaults() = transaction {
         val existing = SystemSettingsTable.selectAll().limit(1).firstOrNull()
         if (existing == null) {

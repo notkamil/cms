@@ -37,9 +37,9 @@ function MoonIcon({ size = 24 }: { size?: number }) {
   )
 }
 
-/** Блок «4»: 3×5, BSB / BSB / BBB / SSB / SSB. Цвет через класс. */
+/** Digit "4": 3×5 grid. */
 function Digit4({ colorClass }: { colorClass: string }) {
-  const fill = [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1] // по рядам
+  const fill = [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1]
   return (
     <div className="notfound-digit notfound-digit--4" aria-hidden="true">
       {fill.map((on, i) => (
@@ -49,7 +49,7 @@ function Digit4({ colorClass }: { colorClass: string }) {
   )
 }
 
-/** Блок «0»: 3×5. */
+/** Digit "0": 3×5 grid. */
 function Digit0({ colorClass }: { colorClass: string }) {
   const fill = [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
   return (

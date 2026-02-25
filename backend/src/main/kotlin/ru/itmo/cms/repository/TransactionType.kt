@@ -10,7 +10,7 @@ enum class TransactionType {
     withdrawal
 }
 
-/** PGobject для записи PostgreSQL enum в колонку transaction_type */
+/** PGobject for PostgreSQL enum in column transaction_type */
 class PGTransactionType(value: TransactionType?) : PGobject() {
     init {
         type = "transaction_type"

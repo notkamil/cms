@@ -6,7 +6,7 @@ export type LoadingLogoVariant = 'smooth' | 'jump'
 
 type Step = { S: [number, number]; B: [number, number]; G: [number, number]; R: [number, number] }
 
-/** Плавный круг: S обходит периметр 3 раза и возвращается в начало (без углового скачка) */
+/** Smooth variant: S cycles perimeter 3 times. */
 const SMOOTH_STEPS: Step[] = [
   { S: [0, 0], B: [16, 0], G: [0, 16], R: [16, 16] },
   { G: [0, 0], B: [16, 0], S: [0, 16], R: [16, 16] },
@@ -22,7 +22,7 @@ const SMOOTH_STEPS: Step[] = [
   { B: [0, 0], S: [16, 0], G: [0, 16], R: [16, 16] },
 ]
 
-/** Вариант с угловым скачком: SB/GR -> GB/SR -> GB/RS -> GS/RB -> SG/RB -> цикл */
+/** Jump variant: angular step cycle. */
 const JUMP_STEPS: Step[] = [
   { S: [0, 0], B: [16, 0], G: [0, 16], R: [16, 16] },
   { G: [0, 0], B: [16, 0], S: [0, 16], R: [16, 16] },
@@ -37,7 +37,6 @@ export interface LoadingLogoProps {
   theme: LoadingLogoTheme
   size?: number
   variant?: LoadingLogoVariant
-  /** Интервал смены шага, мс */
   intervalMs?: number
 }
 

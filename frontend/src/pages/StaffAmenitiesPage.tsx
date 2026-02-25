@@ -215,7 +215,6 @@ export default function StaffAmenitiesPage() {
       setAssignments(list)
       setMatrixEditMode(false)
     } catch {
-      // could set error state
     } finally {
       setMatrixSaving(false)
     }
@@ -245,7 +244,7 @@ export default function StaffAmenitiesPage() {
       <div className="staff-content staff-content--wider">
         <h2 className="cabinet-history-title">Удобства</h2>
 
-        {/* Таблица удобств: название — описание */}
+        {/* Amenities table: name — description */}
         <h3 className="cabinet-history-title" style={{ marginTop: '1rem', fontSize: '1rem' }}>
           Список удобств
         </h3>
@@ -286,7 +285,7 @@ export default function StaffAmenitiesPage() {
           </button>
         </div>
 
-        {/* 2D матрица: строки — удобства, столбцы — пространства */}
+        {/* 2D matrix: rows = amenities, cols = spaces */}
         <h3 className="cabinet-history-title" style={{ marginTop: '1.5rem', fontSize: '1rem' }}>
           Удобства по пространствам
         </h3>

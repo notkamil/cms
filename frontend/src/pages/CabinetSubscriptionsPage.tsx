@@ -44,7 +44,7 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Отменена',
 }
 
-/** Остаток подписки: 0 → «Безлимит», иначе «Ч:ММ» */
+/** Subscription remainder: 0 → "Unlimited", else "H:MM" */
 function formatRemainingMinutes(minutes: number): string {
   if (minutes === 0) return 'Безлимит'
   const h = Math.floor(minutes / 60)
@@ -62,7 +62,7 @@ function formatDate(iso: string): string {
   return d && m && y ? `${d}.${m}.${y}` : iso
 }
 
-/** Добавить дни к дате YYYY-MM-DD, вернуть YYYY-MM-DD */
+/** Add days to YYYY-MM-DD, return YYYY-MM-DD */
 function addDays(iso: string, days: number): string {
   const d = new Date(iso + 'T12:00:00')
   d.setDate(d.getDate() + days)
@@ -182,7 +182,7 @@ export default function CabinetSubscriptionsPage() {
     <div className="cabinet-content cabinet-content--wider">
       <h2 className="cabinet-history-title">Подписки</h2>
 
-      {/* Текущие подписки */}
+      {/* Current subscriptions */}
       <h3 className="cabinet-history-title" style={{ marginTop: '1.5rem', fontSize: '1rem' }}>
         Текущие подписки
       </h3>
@@ -213,7 +213,7 @@ export default function CabinetSubscriptionsPage() {
         </table>
       )}
 
-      {/* Архивные подписки */}
+      {/* Archived subscriptions */}
       <h3 className="cabinet-history-title" style={{ marginTop: '1.5rem', fontSize: '1rem' }}>
         Архивные подписки
       </h3>
@@ -244,7 +244,7 @@ export default function CabinetSubscriptionsPage() {
         </table>
       )}
 
-      {/* Оформить подписку: только фикс и пакеты */}
+      {/* New subscription: fixed and package only */}
       <h3 className="cabinet-history-title" style={{ marginTop: '1.5rem', fontSize: '1rem' }}>
         Оформить подписку
       </h3>
@@ -288,7 +288,7 @@ export default function CabinetSubscriptionsPage() {
         </table>
       )}
 
-      {/* Модалка оформления подписки */}
+      {/* Subscribe modal */}
       {subscribeTariffId != null && selectedTariff && (
         <div className="cabinet-modal-overlay" onClick={closeSubscribe}>
           <div className="cabinet-modal cabinet-modal--subscription" onClick={(e) => e.stopPropagation()}>

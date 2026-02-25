@@ -116,34 +116,34 @@ fun Application.configureAuthRoutes() {
                 val trimmedEmail = body.email.trim().lowercase()
                 val member = MemberRepository.findByEmail(trimmedEmail)
                     ?: run {
-                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid email or password"))
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Неверный email или пароль"))
                         return@post
                     }
                 if (!BCrypt.verifyer().verify(body.password.toCharArray(), member.passwordHash).verified) {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid email or password"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Неверный email или пароль"))
                     return@post
                 }
                 val token = createToken(member.memberId, member.email, secret, issuer, audience, expiresInSeconds)
                 call.respond(AuthResponse(token = token, member = member.toMemberResponse()))
             } catch (e: Exception) {
                 call.application.log.error("Login failed", e)
-                call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
             }
         }
 
         authenticate("jwt") {
             get("/api/me") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@get
                 }
                 val member = MemberRepository.findById(memberId)
                     ?: run {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found"))
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пользователь не найден"))
                         return@get
                     }
                 call.respond(member.toMemberResponse())
@@ -151,11 +151,11 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/transactions") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@get
                 }
                 val rows = MemberRepository.findTransactionsByMemberId(memberId)
@@ -165,17 +165,17 @@ fun Application.configureAuthRoutes() {
 
             patch("/api/me") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@patch
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@patch
                 }
                 try {
                     val body = call.receive<PatchMeRequest>()
                     if (body.name == null && body.email == null && body.phone == null) {
-                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Provide at least one of name, email, phone"))
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите хотя бы одно: имя, email или телефон"))
                         return@patch
                     }
                     val member = MemberRepository.updateProfileWithAudit(
@@ -201,17 +201,17 @@ fun Application.configureAuthRoutes() {
                     }
                 } catch (e: Exception) {
                     call.application.log.error("PATCH /api/me failed", e)
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
                 }
             }
 
             put("/api/me/password") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@put
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@put
                 }
                 try {
@@ -224,20 +224,20 @@ fun Application.configureAuthRoutes() {
                     )
                     call.respond(HttpStatusCode.OK, mapOf("ok" to true))
                 } catch (e: ProfileUpdateException.InvalidPassword) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Invalid password")))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный пароль")))
                 } catch (e: Exception) {
                     call.application.log.error("PUT /api/me/password failed", e)
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный запрос")))
                 }
             }
 
             post("/api/me/balance/deposit") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@post
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@post
                 }
                 try {
@@ -271,11 +271,11 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/subscriptions") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@get
                 }
                 val spaceIdParam = call.request.queryParameters["spaceId"]?.toIntOrNull()
@@ -285,7 +285,6 @@ fun Application.configureAuthRoutes() {
                 if (spaceIdParam != null) {
                     all = all.filter { TariffRepository.getSpaceIdsByTariffId(it.tariffId).contains(spaceIdParam) }
                 }
-                // В модалках бронирования не показываем фикс-подписки, у которых уже есть привязанное бронирование
                 if (forBooking) {
                     all = all.filter { sub ->
                         val tariff = TariffRepository.findById(sub.tariffId) ?: return@filter true
@@ -318,11 +317,11 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/tariffs/{id}/spaces") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val tariffId = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid tariff id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор тарифа"))
                     return@get
                 }
                 val tariff = TariffRepository.findById(tariffId)
@@ -338,11 +337,11 @@ fun Application.configureAuthRoutes() {
 
             post("/api/me/subscriptions") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@post
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@post
                 }
                 val body = call.receive<CreateSubscriptionRequest>()
@@ -406,7 +405,7 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/spaces") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val list = SpaceRepository.findAllActive().map { SpaceForBookingsResponse(id = it.spaceId, name = it.name, floor = it.floor) }
@@ -415,7 +414,7 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/spaces/list") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val list = SpaceRepository.findAllAvailableAndOccupied().map {
@@ -434,11 +433,11 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/spaces/{id}") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@get
                 }
                 val space = SpaceRepository.findAllAvailableAndOccupied().find { it.spaceId == id }
@@ -461,7 +460,7 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/settings") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val settings = SettingsRepository.getAppSettings()
@@ -485,11 +484,11 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/bookings") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@get
                 }
                 val dateStr = call.parameters["date"] ?: run {
@@ -513,11 +512,11 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/bookings/list") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@get
                 }
                 val zone = SettingsRepository.getAppSettings().zoneId
@@ -530,11 +529,11 @@ fun Application.configureAuthRoutes() {
 
             post("/api/me/bookings") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@post
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@post
                 }
                 val settings = SettingsRepository.getAppSettings()
@@ -609,15 +608,15 @@ fun Application.configureAuthRoutes() {
 
             post("/api/me/bookings/{id}/cancel") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@post
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@post
                 }
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@post
                 }
                 val settings = SettingsRepository.getAppSettings()
@@ -633,15 +632,15 @@ fun Application.configureAuthRoutes() {
 
             patch("/api/me/bookings/{id}") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@patch
                 }
                 val memberId = principal.payload.subject?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Недействительный токен"))
                     return@patch
                 }
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Неверный идентификатор"))
                     return@patch
                 }
                 val settings = SettingsRepository.getAppSettings()
@@ -657,7 +656,7 @@ fun Application.configureAuthRoutes() {
 
             get("/api/me/members/search") {
                 val principal = call.principal<JWTPrincipal>() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Требуется авторизация"))
                     return@get
                 }
                 val q = call.parameters["q"]?.trim() ?: ""

@@ -9,7 +9,7 @@ enum class StaffRole {
     inactive
 }
 
-/** PGobject для записи PostgreSQL enum staff_role */
+/** PGobject for PostgreSQL enum staff_role */
 class PGStaffRole(value: StaffRole?) : PGobject() {
     init {
         type = "staff_role"

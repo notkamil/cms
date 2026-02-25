@@ -8,7 +8,7 @@ enum class TariffType {
     `package`
 }
 
-/** PGobject для записи PostgreSQL enum tariff_type */
+/** PGobject for PostgreSQL enum tariff_type */
 class PGTariffType(value: TariffType?) : PGobject() {
     init {
         type = "tariff_type"

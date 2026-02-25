@@ -38,11 +38,26 @@ function buildUrl(path: string): string {
   return `${base}${p}`
 }
 
+function statusTextToRussian(status: number, fallback: string): string {
+  if (fallback && /[а-яА-ЯёЁ]/.test(fallback)) return fallback
+  const map: Record<number, string> = {
+    400: 'Неверный запрос',
+    401: 'Требуется авторизация',
+    403: 'Доступ запрещён',
+    404: 'Не найдено',
+    409: 'Конфликт данных',
+    500: 'Ошибка сервера',
+    502: 'Сервер недоступен',
+    503: 'Сервис недоступен',
+  }
+  return map[status] ?? 'Произошла ошибка'
+}
+
 export class ApiError extends Error {
   status: number
   body?: unknown
   constructor(message: string, status: number, body?: unknown) {
-    super(message)
+    super(statusTextToRussian(status, message))
     this.name = 'ApiError'
     this.status = status
     this.body = body
@@ -60,11 +75,8 @@ export async function get<T = unknown>(path: string, useStaffToken = false): Pro
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new ApiError(
-      (data as { error?: string })?.error ?? res.statusText,
-      res.status,
-      data
-    )
+    const msg = (data as { error?: string })?.error ?? res.statusText
+    throw new ApiError(msg, res.status, data)
   }
   return data as T
 }

@@ -39,6 +39,8 @@ function buildHeaders(includeBody = false, useStaffToken = false): HeadersInit {
 function buildUrl(path: string): string {
   const base = baseUrl?.replace(/\/$/, '') ?? ''
   const p = path.startsWith('/') ? path : `/${path}`
+  // Avoid double prefix when path already starts with base (e.g. base=/api, path=/api/staff/...)
+  if (base && p.startsWith(base)) return p
   return `${base}${p}`
 }
 

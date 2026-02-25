@@ -17,5 +17,6 @@
 5. [Этот репозиторий](./)
 6. [Docker](docker-compose.yml), [CI](.github/workflows/ci.yml)
 7. [Документация по интерфейсам и алгоритмам](labs/lab7.md)
+9. [Задачи на SQL](https://platform.stratascratch.com/user/notkamil)
 
 **Деплой:** http://188.124.50.54/

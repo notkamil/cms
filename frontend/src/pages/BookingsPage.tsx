@@ -177,8 +177,9 @@ export default function BookingsPage() {
     return get<Booking[]>(`/api/me/bookings?date=${encodeURIComponent(date)}`)
   }, [])
   const loadSubscriptions = useCallback((spaceId?: number) => {
-    const q = spaceId != null ? `?spaceId=${encodeURIComponent(spaceId)}` : ''
-    return get<{ current: Subscription[] }>(`/api/me/subscriptions${q}`).then((r) => r.current)
+    const params = new URLSearchParams({ forBooking: '1' })
+    if (spaceId != null) params.set('spaceId', String(spaceId))
+    return get<{ current: Subscription[] }>(`/api/me/subscriptions?${params}`).then((r) => r.current)
   }, [])
   const loadHourlyTariffs = useCallback((spaceId?: number) => {
     const q = spaceId != null ? `?spaceId=${encodeURIComponent(spaceId)}` : ''

@@ -110,6 +110,7 @@ object SubscriptionRepository {
 
     /**
      * Оформление подписки с оплатой с баланса: проверка баланса, списание, транзакция оплаты, запись в TransactionSubscriptions.
+     * Для фикс-тарифа (fixSpaceId != null) сразу создаётся бронирование на выбранное пространство на весь период.
      * @return SubscriptionRow при успехе, null при недостатке средств или если участник не найден
      */
     fun createWithPayment(
@@ -119,7 +120,8 @@ object SubscriptionRepository {
         price: BigDecimal,
         startDate: LocalDate,
         endDate: LocalDate,
-        remainingMinutes: Int
+        remainingMinutes: Int,
+        fixSpaceId: Int? = null
     ): SubscriptionRow? = transaction {
         val memberRow = MembersTable.selectAll().where { MembersTable.memberId eq memberId }.singleOrNull() ?: return@transaction null
         val balance = memberRow[MembersTable.balance]
@@ -133,6 +135,10 @@ object SubscriptionRepository {
             it[SubscriptionsTable.remainingMinutes] = remainingMinutes
             it[SubscriptionsTable.status] = SubscriptionStatus.active
         } get SubscriptionsTable.subscriptionId
+
+        if (fixSpaceId != null) {
+            BookingRepository.createFixBooking(memberId, fixSpaceId, subscriptionId, startDate, endDate)
+        }
 
         val dateFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy")
         val description = "Подписка «${tariffName}» ${startDate.format(dateFmt)}–${endDate.format(dateFmt)}"
@@ -261,6 +267,8 @@ object SubscriptionRepository {
         SubscriptionsTable.update(where = { SubscriptionsTable.subscriptionId eq subscriptionId }) {
             it[SubscriptionsTable.status] = SubscriptionStatus.cancelled
         }
+        // Все подтверждённые бронирования по этой подписке (в т.ч. фикс) переводим в cancelled
+        BookingRepository.cancelBookingsBySubscriptionId(subscriptionId)
         true
     }
 }

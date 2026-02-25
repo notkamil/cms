@@ -81,6 +81,8 @@ export default function CabinetSubscriptionsPage() {
   const loadingStartRef = useRef<number | null>(null)
   const [subscribeTariffId, setSubscribeTariffId] = useState<number | null>(null)
   const [subscribeStartDate, setSubscribeStartDate] = useState<string>(todayISO())
+  const [subscribeSpaceId, setSubscribeSpaceId] = useState<number | null>(null)
+  const [subscribeSpaces, setSubscribeSpaces] = useState<{ id: number; name: string; floor: number }[]>([])
   const [subscribeError, setSubscribeError] = useState<string | null>(null)
   const [subscribeLoading, setSubscribeLoading] = useState(false)
 
@@ -119,22 +121,41 @@ export default function CabinetSubscriptionsPage() {
   const openSubscribe = (tariffId: number) => {
     setSubscribeTariffId(tariffId)
     setSubscribeStartDate(todayISO())
+    setSubscribeSpaceId(null)
+    setSubscribeSpaces([])
     setSubscribeError(null)
+    const tariff = availableTariffs.find((t) => t.id === tariffId)
+    if (tariff?.type === 'fixed') {
+      get<{ id: number; name: string; floor: number }[]>(`/api/me/tariffs/${tariffId}/spaces`)
+        .then((spaces) => {
+          setSubscribeSpaces(spaces)
+          setSubscribeSpaceId(spaces[0]?.id ?? null)
+        })
+        .catch(() => setSubscribeSpaces([]))
+    }
   }
 
   const closeSubscribe = () => {
     setSubscribeTariffId(null)
+    setSubscribeSpaceId(null)
+    setSubscribeSpaces([])
     setSubscribeError(null)
   }
 
   const confirmSubscribe = async () => {
     if (subscribeTariffId == null) return
+    const selectedTariff = availableTariffs.find((t) => t.id === subscribeTariffId)
+    if (selectedTariff?.type === 'fixed' && subscribeSpaceId == null) {
+      setSubscribeError('Выберите пространство')
+      return
+    }
     setSubscribeLoading(true)
     setSubscribeError(null)
     try {
       await post('/api/me/subscriptions', {
         tariffId: subscribeTariffId,
         startDate: subscribeStartDate,
+        ...(selectedTariff?.type === 'fixed' && subscribeSpaceId != null ? { spaceId: subscribeSpaceId } : {}),
       })
       loadAll()
       closeSubscribe()
@@ -288,6 +309,26 @@ export default function CabinetSubscriptionsPage() {
                     <th scope="row">Включенные часы</th>
                     <td>{formatIncludedHours(selectedTariff.includedHours)}</td>
                   </tr>
+                  {selectedTariff?.type === 'fixed' && (
+                    <tr>
+                      <th scope="row">Пространство</th>
+                      <td>
+                        <select
+                          value={subscribeSpaceId ?? ''}
+                          onChange={(e) => setSubscribeSpaceId(e.target.value ? Number(e.target.value) : null)}
+                          className="cabinet-modal-input"
+                          aria-label="Пространство для фикс-подписки"
+                        >
+                          <option value="">— выберите —</option>
+                          {subscribeSpaces.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name} (этаж {s.floor})
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <th scope="row">Дата начала</th>
                     <td>
@@ -320,7 +361,7 @@ export default function CabinetSubscriptionsPage() {
                 <button
                   type="button"
                   className="cabinet-modal-submit"
-                  disabled={subscribeLoading}
+                  disabled={subscribeLoading || (selectedTariff?.type === 'fixed' && subscribeSpaceId == null)}
                   onClick={confirmSubscribe}
                 >
                   {subscribeLoading ? 'Оформление…' : 'Оформить'}

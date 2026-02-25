@@ -108,7 +108,9 @@ data class AvailableTariffResponse(
 @Serializable
 data class CreateSubscriptionRequest(
     val tariffId: Int,
-    val startDate: String? = null
+    val startDate: String? = null,
+    /** Обязателен для тарифа «Фикс»: пространство на весь период подписки */
+    val spaceId: Int? = null
 )
 
 // ----- Bookings -----

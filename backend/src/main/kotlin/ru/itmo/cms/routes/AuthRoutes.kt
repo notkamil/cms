@@ -274,10 +274,19 @@ fun Application.configureAuthRoutes() {
                     return@get
                 }
                 val spaceIdParam = call.request.queryParameters["spaceId"]?.toIntOrNull()
+                val forBooking = call.request.queryParameters["forBooking"] == "1"
                 markExpiredSubscriptions()
                 var all = SubscriptionRepository.findByMemberId(memberId)
                 if (spaceIdParam != null) {
                     all = all.filter { TariffRepository.getSpaceIdsByTariffId(it.tariffId).contains(spaceIdParam) }
+                }
+                // В модалках бронирования не показываем фикс-подписки, у которых уже есть привязанное бронирование
+                if (forBooking) {
+                    all = all.filter { sub ->
+                        val tariff = TariffRepository.findById(sub.tariffId) ?: return@filter true
+                        if (tariff.type != TariffType.fixed) true
+                        else !BookingRepository.hasBookingForSubscription(sub.subscriptionId)
+                    }
                 }
                 val current = all.filter { it.status == SubscriptionStatus.active }.map { it.toSubscriptionResponse() }
                 val archived = all.filter { it.status != SubscriptionStatus.active }.map { it.toSubscriptionResponse() }
@@ -300,6 +309,26 @@ fun Application.configureAuthRoutes() {
                     list = list.filter { it.tariffId in allowedTariffIds }
                 }
                 call.respond(list.map { it.toAvailableTariffResponse() })
+            }
+
+            get("/api/me/tariffs/{id}/spaces") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val tariffId = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid tariff id"))
+                    return@get
+                }
+                val tariff = TariffRepository.findById(tariffId)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Тариф не найден"))
+                        return@get
+                    }
+                val spaceIds = TariffRepository.getSpaceIdsByTariffId(tariffId)
+                val spaces = spaceIds.mapNotNull { SpaceRepository.findById(it) }
+                    .map { SpaceForBookingsResponse(id = it.spaceId, name = it.name, floor = it.floor) }
+                call.respond(spaces)
             }
 
             post("/api/me/subscriptions") {
@@ -334,6 +363,25 @@ fun Application.configureAuthRoutes() {
                     }
                 } ?: LocalDate.now()
                 val endDate = startDate.plusDays(tariff.durationDays.toLong())
+                val fixSpaceId: Int? = if (tariff.type == TariffType.fixed) {
+                    val sid = body.spaceId
+                    if (sid == null) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Для тарифа «Фикс» укажите пространство"))
+                        return@post
+                    }
+                    val allowedSpaceIds = TariffRepository.getSpaceIdsByTariffId(body.tariffId)
+                    if (sid !in allowedSpaceIds) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Выбранное пространство недоступно для этого тарифа"))
+                        return@post
+                    }
+                    val startTime = startDate.atStartOfDay()
+                    val endTime = endDate.plusDays(1).atStartOfDay()
+                    if (BookingRepository.hasOverlap(sid, startTime, endTime, null)) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "На выбранное пространство уже есть бронирование в этот период"))
+                        return@post
+                    }
+                    sid
+                } else null
                 val subscription = SubscriptionRepository.createWithPayment(
                     memberId = memberId,
                     tariffId = body.tariffId,
@@ -341,7 +389,8 @@ fun Application.configureAuthRoutes() {
                     price = tariff.price,
                     startDate = startDate,
                     endDate = endDate,
-                    remainingMinutes = if (tariff.includedHours == 0) 0 else tariff.includedHours * 60
+                    remainingMinutes = if (tariff.includedHours == 0) 0 else tariff.includedHours * 60,
+                    fixSpaceId = fixSpaceId
                 )
                 if (subscription == null) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Недостаточно средств на балансе"))

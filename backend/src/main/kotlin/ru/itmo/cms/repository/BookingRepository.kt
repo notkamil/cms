@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -76,6 +77,61 @@ object BookingRepository {
                 isParticipant = isParticipant
             )
         }
+    }
+
+    /**
+     * Создать бронирование по фикс-подписке: одно пространство на весь период [startDate, endDate].
+     * Вызывать только изнутри существующей транзакции (например, из createWithPayment).
+     * Не списывает remainingMinutes. Не проверяет 15-мин гранулярность.
+     */
+    fun createFixBooking(
+        memberId: Int,
+        spaceId: Int,
+        subscriptionId: Int,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Int {
+        val startTime = startDate.atStartOfDay()
+        val endTime = endDate.plusDays(1).atStartOfDay()
+        val bookingId = BookingsTable.insert {
+            it[BookingsTable.spaceId] = spaceId
+            it[BookingsTable.createdBy] = memberId
+            it[BookingsTable.bookingType] = BookingType.subscription
+            it[BookingsTable.startTime] = startTime
+            it[BookingsTable.endTime] = endTime
+            it[BookingsTable.status] = BookingStatus.confirmed
+        } get BookingsTable.bookingId
+        BookingSubscriptionsTable.insert {
+            it[BookingSubscriptionsTable.bookingId] = bookingId
+            it[BookingSubscriptionsTable.subscriptionId] = subscriptionId
+        }
+        return bookingId
+    }
+
+    /**
+     * Перевести в cancelled все подтверждённые бронирования, привязанные к подписке.
+     * Вызывать при отмене подписки из админки (в т.ч. фикс: подписка и бронирование отменяются вместе).
+     */
+    fun cancelBookingsBySubscriptionId(subscriptionId: Int) = transaction {
+        val bookingIds = BookingSubscriptionsTable.selectAll()
+            .where { BookingSubscriptionsTable.subscriptionId eq subscriptionId }
+            .map { it[BookingSubscriptionsTable.bookingId] }
+        bookingIds.forEach { bookingId ->
+            BookingsTable.update(where = {
+                (BookingsTable.bookingId eq bookingId) and (BookingsTable.status eq BookingStatus.confirmed)
+            }) {
+                it[BookingsTable.status] = BookingStatus.cancelled
+            }
+        }
+    }
+
+    /** Есть ли у подписки хотя бы одно привязанное бронирование (таблица BookingSubscriptions). */
+    fun hasBookingForSubscription(subscriptionId: Int): Boolean = transaction {
+        BookingSubscriptionsTable.selectAll()
+            .where { BookingSubscriptionsTable.subscriptionId eq subscriptionId }
+            .limit(1)
+            .toList()
+            .isNotEmpty()
     }
 
     /** Есть ли пересечение по пространству и времени (стык конец=начало разрешён). */
@@ -201,6 +257,13 @@ object BookingRepository {
         val participantIds = BookingParticipantsTable.selectAll().where { BookingParticipantsTable.bookingId eq bookingId }
             .map { it[BookingParticipantsTable.memberId] }
         if (memberId != creatorId && memberId !in participantIds) return@transaction "Нет прав на отмену этого бронирования"
+        // Бронирование по фикс-подписке отменяется только через админку
+        if (row[BookingsTable.bookingType] == BookingType.subscription) {
+            val bsRow = BookingSubscriptionsTable.selectAll().where { BookingSubscriptionsTable.bookingId eq bookingId }.singleOrNull() ?: return@transaction null
+            val subRow = SubscriptionsTable.selectAll().where { SubscriptionsTable.subscriptionId eq bsRow[BookingSubscriptionsTable.subscriptionId] }.singleOrNull() ?: return@transaction null
+            val tariff = TariffRepository.findById(subRow[SubscriptionsTable.tariffId])
+            if (tariff?.type == TariffType.fixed) return@transaction "Отмена возможна только через администратора"
+        }
         val startTime = row[BookingsTable.startTime]
         val now = LocalDateTime.now()
         if (startTime <= now) return@transaction "Бронирование уже началось или прошло"

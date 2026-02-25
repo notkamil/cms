@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { StaffAuthProvider, useStaffAuth } from './context/StaffAuthContext'
 import CabinetLayout from './components/CabinetLayout'
@@ -25,6 +25,12 @@ function StaffGate() {
   return <StaffLoginPage />
 }
 
+function StaffRequireAuth({ children }: { children: React.ReactNode }) {
+  const { staffUser } = useStaffAuth()
+  if (!staffUser) return <Navigate to="/staff" replace />
+  return <>{children}</>
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -47,12 +53,12 @@ function App() {
             <Route path="/cms" element={<CmsPage />} />
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffGate />} />
-              <Route path="cabinet" element={<StaffCabinetPage />} />
-              <Route path="spaces" element={<StaffSpacesPage />} />
-              <Route path="amenities" element={<StaffAmenitiesPage />} />
-              <Route path="tariffs" element={<StaffTariffsPage />} />
-              <Route path="subscriptions" element={<StaffSubscriptionsPage />} />
-              <Route path="bookings" element={<StaffBookingsPage />} />
+              <Route path="cabinet" element={<StaffRequireAuth><StaffCabinetPage /></StaffRequireAuth>} />
+              <Route path="spaces" element={<StaffRequireAuth><StaffSpacesPage /></StaffRequireAuth>} />
+              <Route path="amenities" element={<StaffRequireAuth><StaffAmenitiesPage /></StaffRequireAuth>} />
+              <Route path="tariffs" element={<StaffRequireAuth><StaffTariffsPage /></StaffRequireAuth>} />
+              <Route path="subscriptions" element={<StaffRequireAuth><StaffSubscriptionsPage /></StaffRequireAuth>} />
+              <Route path="bookings" element={<StaffRequireAuth><StaffBookingsPage /></StaffRequireAuth>} />
             </Route>
           </Routes>
         </BrowserRouter>

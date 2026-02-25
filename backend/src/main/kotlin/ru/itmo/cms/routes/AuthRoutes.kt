@@ -45,6 +45,7 @@ import ru.itmo.cms.repository.BookingTimelineRow
 import ru.itmo.cms.repository.BookingType
 import ru.itmo.cms.repository.BookingStatus
 import ru.itmo.cms.repository.SpaceRepository
+import ru.itmo.cms.repository.AmenityRepository
 import ru.itmo.cms.util.normalizeEmail
 import ru.itmo.cms.util.normalizePhone
 import java.time.LocalDate
@@ -421,10 +422,38 @@ fun Application.configureAuthRoutes() {
                         typeName = it.typeName,
                         floor = it.floor,
                         capacity = it.capacity,
-                        description = it.description
+                        description = it.description,
+                        amenities = AmenityRepository.getAmenityNamesForSpace(it.spaceId)
                     )
                 }
                 call.respond(list)
+            }
+
+            get("/api/me/spaces/{id}") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@get
+                }
+                val space = SpaceRepository.findAllAvailableAndOccupied().find { it.spaceId == id }
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пространство не найдено"))
+                        return@get
+                    }
+                call.respond(
+                    SpaceReferenceResponse(
+                        id = space.spaceId,
+                        name = space.name,
+                        typeName = space.typeName,
+                        floor = space.floor,
+                        capacity = space.capacity,
+                        description = space.description,
+                        amenities = AmenityRepository.getAmenityNamesForSpace(space.spaceId)
+                    )
+                )
             }
 
             get("/api/me/bookings") {

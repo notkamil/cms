@@ -481,7 +481,9 @@ fun Application.configureStaffRoutes() {
 
             // ----- Spaces -----
             get("/api/staff/spaces") {
-                val list = SpaceRepository.findAll().map { it.toSpaceResponse() }
+                val list = SpaceRepository.findAll().map {
+                    it.toSpaceResponse().copy(amenities = AmenityRepository.getAmenityNamesForSpace(it.spaceId))
+                }
                 call.respond(list)
             }
             post("/api/staff/spaces") {
@@ -520,7 +522,7 @@ fun Application.configureStaffRoutes() {
                         call.respond(HttpStatusCode.NotFound, mapOf("error" to "Пространство не найдено"))
                         return@get
                     }
-                call.respond(row.toSpaceResponse())
+                call.respond(row.toSpaceResponse().copy(amenities = AmenityRepository.getAmenityNamesForSpace(id)))
             }
             patch("/api/staff/spaces/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull() ?: run {

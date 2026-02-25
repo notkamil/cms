@@ -163,6 +163,22 @@
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
 }
 
+.bookings-space-name-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bookings-space-name-link:hover {
+  color: var(--cabinet-edit-border);
+}
+
 .bookings-track {
   position: relative;
   min-height: 2.5rem;

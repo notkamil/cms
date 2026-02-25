@@ -161,7 +161,8 @@ data class SpaceReferenceResponse(
     val typeName: String,
     val floor: Int,
     val capacity: Int,
-    val description: String
+    val description: String,
+    val amenities: List<String> = emptyList()
 )
 
 @Serializable
@@ -280,7 +281,8 @@ data class SpaceResponse(
     val floor: Int,
     val capacity: Int,
     val status: String,
-    val description: String
+    val description: String,
+    val amenities: List<String> = emptyList()
 )
 
 @Serializable

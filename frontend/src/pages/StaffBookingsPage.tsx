@@ -51,6 +51,19 @@ interface Space {
   floor: number
 }
 
+/** Полные данные пространства для модалки (админ — со статусом) */
+interface SpaceFull {
+  id: number
+  name: string
+  typeId: number
+  typeName: string
+  floor: number
+  capacity: number
+  status: string
+  description: string
+  amenities?: string[]
+}
+
 interface BookingListItem {
   id: number
   spaceId: number
@@ -123,11 +136,22 @@ export default function StaffBookingsPage() {
   const [searchResults, setSearchResults] = useState<{ id: number; name: string; email: string }[]>([])
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  const [spaceInfoModal, setSpaceInfoModal] = useState<SpaceFull | null>(null)
+  const [spaceInfoLoading, setSpaceInfoLoading] = useState(false)
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10)
   const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() - HOURS_START * 60 : null
 
   const loadSpaces = useCallback(() => get<Space[]>('/api/staff/spaces', true), [])
+
+  const openSpaceInfo = useCallback((spaceId: number) => {
+    setSpaceInfoLoading(true)
+    setSpaceInfoModal(null)
+    get<SpaceFull>(`/api/staff/spaces/${spaceId}`, true)
+      .then(setSpaceInfoModal)
+      .catch(() => setSpaceInfoModal(null))
+      .finally(() => setSpaceInfoLoading(false))
+  }, [])
   const loadBookings = useCallback((date: string) => {
     return get<BookingListItem[]>(`/api/staff/bookings?date=${encodeURIComponent(date)}`, true)
   }, [])
@@ -359,7 +383,15 @@ export default function StaffBookingsPage() {
             )
             return (
               <div key={space.id} className="bookings-row">
-                <div className="bookings-space-name">{space.name}</div>
+                <div className="bookings-space-name">
+                  <button
+                    type="button"
+                    className="bookings-space-name-link"
+                    onClick={(e) => { e.stopPropagation(); openSpaceInfo(space.id) }}
+                  >
+                    {space.name}
+                  </button>
+                </div>
                 <div
                   className="bookings-track"
                   style={{ width: TRACK_TOTAL_WIDTH, minWidth: TRACK_TOTAL_WIDTH }}
@@ -459,7 +491,13 @@ export default function StaffBookingsPage() {
                       <dl className="bookings-view-datetime">
                         <dt>Пространство</dt>
                         <dd>
-                          <strong>{viewBooking.spaceName ?? '—'}</strong>
+                          <button
+                            type="button"
+                            className="cabinet-link"
+                            onClick={() => openSpaceInfo(viewBooking.spaceId)}
+                          >
+                            {viewBooking.spaceName ?? '—'}
+                          </button>
                         </dd>
                         <dt>Тип</dt>
                         <dd>
@@ -696,6 +734,43 @@ export default function StaffBookingsPage() {
                   onClick={handleSaveParticipants}
                 >
                   {editLoading ? 'Сохранение…' : 'Сохранить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(spaceInfoModal || spaceInfoLoading) && (
+        <div
+          className="cabinet-modal-overlay"
+          onClick={() => { if (!spaceInfoLoading) setSpaceInfoModal(null) }}
+          onKeyDown={(e) => e.key === 'Escape' && !spaceInfoLoading && setSpaceInfoModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="staff-space-info-title"
+        >
+          <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 id="staff-space-info-title" className="cabinet-modal-title">Пространство</h3>
+            <div className="cabinet-modal-form">
+              {spaceInfoLoading ? (
+                <p className="cabinet-modal-muted">Загрузка…</p>
+              ) : spaceInfoModal ? (
+                <table className="cabinet-table cabinet-subscription-modal-table">
+                  <tbody>
+                    <tr><th scope="row">Название</th><td>{spaceInfoModal.name}</td></tr>
+                    <tr><th scope="row">Тип</th><td>{spaceInfoModal.typeName}</td></tr>
+                    <tr><th scope="row">Этаж</th><td>{spaceInfoModal.floor}</td></tr>
+                    <tr><th scope="row">Вместимость</th><td>{spaceInfoModal.capacity}</td></tr>
+                    <tr><th scope="row">Статус</th><td>{spaceInfoModal.status === 'available' ? 'Свободно' : spaceInfoModal.status === 'occupied' ? 'Занято' : spaceInfoModal.status === 'maintenance' ? 'Ремонт' : spaceInfoModal.status === 'disabled' ? 'Архивное' : spaceInfoModal.status}</td></tr>
+                    <tr><th scope="row">Описание</th><td>{spaceInfoModal.description || '—'}</td></tr>
+                    <tr><th scope="row">Удобства</th><td>{spaceInfoModal.amenities?.length ? spaceInfoModal.amenities.join(', ') : '—'}</td></tr>
+                  </tbody>
+                </table>
+              ) : null}
+              <div className="cabinet-modal-actions">
+                <button type="button" className="cabinet-modal-cancel" onClick={() => setSpaceInfoModal(null)}>
+                  Закрыть
                 </button>
               </div>
             </div>

@@ -13,6 +13,7 @@ interface SpaceRef {
   floor: number
   capacity: number
   description: string
+  amenities?: string[]
 }
 
 export default function CabinetSpacesPage() {
@@ -60,6 +61,7 @@ export default function CabinetSpacesPage() {
               <th scope="col">Этаж</th>
               <th scope="col">Вместимость</th>
               <th scope="col">Описание</th>
+              <th scope="col">Удобства</th>
             </tr>
           </thead>
           <tbody>
@@ -70,6 +72,7 @@ export default function CabinetSpacesPage() {
                 <td>{row.floor}</td>
                 <td>{row.capacity}</td>
                 <td>{row.description || '—'}</td>
+                <td>{row.amenities?.length ? row.amenities.join(', ') : '—'}</td>
               </tr>
             ))}
           </tbody>

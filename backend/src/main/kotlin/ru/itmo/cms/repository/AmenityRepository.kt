@@ -46,6 +46,18 @@ object AmenityRepository {
         sids.map { sid -> SpaceSummaryRow(spaceId = sid, name = spaceNames[sid]?.name ?: "") }
     }
 
+    /** Названия удобств, привязанных к пространству (для модалки и справочника). */
+    fun getAmenityNamesForSpace(spaceId: Int): List<String> = transaction {
+        val aids = SpaceAmenitiesTable.selectAll().where { SpaceAmenitiesTable.spaceId eq spaceId }
+            .map { it[SpaceAmenitiesTable.amenityId] }
+        if (aids.isEmpty()) return@transaction emptyList()
+        val aidSet = aids.toSet()
+        val byId = AmenitiesTable.selectAll().toList()
+            .filter { it[AmenitiesTable.amenityId] in aidSet }
+            .associate { it[AmenitiesTable.amenityId] to it[AmenitiesTable.name] }
+        aids.map { byId[it] ?: "" }.filter { it.isNotBlank() }
+    }
+
     fun create(name: String, description: String): AmenityRow = transaction {
         val n = name.trim()
         val d = description.trim()

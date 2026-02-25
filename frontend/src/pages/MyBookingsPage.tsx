@@ -20,6 +20,16 @@ interface BookingItem {
   isParticipant: boolean
 }
 
+interface SpaceRef {
+  id: number
+  name: string
+  typeName: string
+  floor: number
+  capacity: number
+  description: string
+  amenities?: string[]
+}
+
 interface MyBookingsListResponse {
   current: BookingItem[]
   archive: BookingItem[]
@@ -70,9 +80,20 @@ export default function MyBookingsPage() {
   const [searchResults, setSearchResults] = useState<{ id: number; name: string; email: string }[]>([])
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  const [spaceInfoModal, setSpaceInfoModal] = useState<SpaceRef | null>(null)
+  const [spaceInfoLoading, setSpaceInfoLoading] = useState(false)
 
   const loadList = useCallback(() => {
     return get<MyBookingsListResponse>('/api/me/bookings/list')
+  }, [])
+
+  const openSpaceInfo = useCallback((spaceId: number) => {
+    setSpaceInfoLoading(true)
+    setSpaceInfoModal(null)
+    get<SpaceRef>(`/api/me/spaces/${spaceId}`)
+      .then(setSpaceInfoModal)
+      .catch(() => setSpaceInfoModal(null))
+      .finally(() => setSpaceInfoLoading(false))
   }, [])
 
   useEffect(() => {
@@ -197,7 +218,15 @@ export default function MyBookingsPage() {
         <tbody>
           {list.map((b) => (
             <tr key={b.id}>
-              <td>{b.spaceName}</td>
+              <td>
+                <button
+                  type="button"
+                  className="cabinet-link"
+                  onClick={() => openSpaceInfo(b.spaceId)}
+                >
+                  {b.spaceName}
+                </button>
+              </td>
               <td>{formatISODateTime(b.startTime)}</td>
               <td>{formatISODateTime(b.endTime)}</td>
               <td>{paymentLabel(b.type)}</td>
@@ -274,7 +303,16 @@ export default function MyBookingsPage() {
           <div className="cabinet-modal cabinet-modal--wide" onClick={(e) => e.stopPropagation()}>
             <h3 className="cabinet-modal-title">Участники бронирования</h3>
             <div className="cabinet-modal-form">
-              <p><strong>{editBooking.spaceName}</strong>, {formatISODateTime(editBooking.startTime)}</p>
+              <p>
+                <button
+                  type="button"
+                  className="cabinet-link"
+                  onClick={() => openSpaceInfo(editBooking.spaceId)}
+                >
+                  <strong>{editBooking.spaceName}</strong>
+                </button>
+                , {formatISODateTime(editBooking.startTime)}
+              </p>
               {editError && (
                 <p className="cabinet-modal-error" role="alert">{editError}</p>
               )}
@@ -318,6 +356,42 @@ export default function MyBookingsPage() {
                   onClick={handleSaveParticipants}
                 >
                   {editLoading ? 'Сохранение…' : 'Сохранить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(spaceInfoModal || spaceInfoLoading) && (
+        <div
+          className="cabinet-modal-overlay"
+          onClick={() => { if (!spaceInfoLoading) setSpaceInfoModal(null) }}
+          onKeyDown={(e) => e.key === 'Escape' && !spaceInfoLoading && setSpaceInfoModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="space-info-title"
+        >
+          <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 id="space-info-title" className="cabinet-modal-title">Пространство</h3>
+            <div className="cabinet-modal-form">
+              {spaceInfoLoading ? (
+                <p className="cabinet-muted">Загрузка…</p>
+              ) : spaceInfoModal ? (
+                <table className="cabinet-table cabinet-subscription-modal-table">
+                  <tbody>
+                    <tr><th scope="row">Название</th><td>{spaceInfoModal.name}</td></tr>
+                    <tr><th scope="row">Тип</th><td>{spaceInfoModal.typeName}</td></tr>
+                    <tr><th scope="row">Этаж</th><td>{spaceInfoModal.floor}</td></tr>
+                    <tr><th scope="row">Вместимость</th><td>{spaceInfoModal.capacity}</td></tr>
+                    <tr><th scope="row">Описание</th><td>{spaceInfoModal.description || '—'}</td></tr>
+                    <tr><th scope="row">Удобства</th><td>{spaceInfoModal.amenities?.length ? spaceInfoModal.amenities.join(', ') : '—'}</td></tr>
+                  </tbody>
+                </table>
+              ) : null}
+              <div className="cabinet-modal-actions">
+                <button type="button" className="cabinet-modal-cancel" onClick={() => setSpaceInfoModal(null)}>
+                  Закрыть
                 </button>
               </div>
             </div>

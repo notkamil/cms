@@ -38,6 +38,19 @@
   min-width: 18rem;
 }
 
+/* Таблица сотрудников: колонка «Должность» уже, «Действия» шире, чтобы кнопки не накладывались */
+.staff-staff-table .staff-staff-table-position,
+.staff-staff-table td:nth-child(5) {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.staff-staff-table .staff-staff-table-actions,
+.staff-staff-table td:nth-child(6) {
+  min-width: 11rem;
+  white-space: nowrap;
+}
+
 /* Табличка конфликтующих пространств в модалке удаления типа */
 .staff-conflict-block {
   margin: 0.75rem 0;

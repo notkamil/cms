@@ -254,6 +254,10 @@ fun Application.configureStaffRoutes() {
                         call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
                         return@patch
                     }
+                if (current.role == StaffRole.staff) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Сотрудник не может редактировать других сотрудников"))
+                    return@patch
+                }
                 if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
                     call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Доступ только для администратора"))
                     return@patch
@@ -267,10 +271,6 @@ fun Application.configureStaffRoutes() {
                         call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
                         return@patch
                     }
-                if (current.role == StaffRole.admin && target.role != StaffRole.staff) {
-                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может редактировать только сотрудников"))
-                    return@patch
-                }
                 val body = call.receive<UpdateStaffRequest>()
                 val newRole = body.role?.let { runCatching { StaffRole.valueOf(it) }.getOrNull() }
                 if (body.role != null && newRole == null) {
@@ -285,9 +285,19 @@ fun Application.configureStaffRoutes() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Нельзя назначить роль суперадмин через интерфейс"))
                     return@patch
                 }
-                if (current.role == StaffRole.admin && newRole != null && newRole != StaffRole.staff) {
-                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может назначать только роль «Сотрудник»"))
-                    return@patch
+                if (current.role == StaffRole.admin) {
+                    if (target.role == StaffRole.superadmin || target.role == StaffRole.admin) {
+                        call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может редактировать только сотрудников"))
+                        return@patch
+                    }
+                    if (target.role == StaffRole.inactive && newRole != StaffRole.staff) {
+                        call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может восстановить только с ролью «Сотрудник»"))
+                        return@patch
+                    }
+                    if (target.role == StaffRole.staff && newRole != null && newRole != StaffRole.staff) {
+                        call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может назначать только роль «Сотрудник»"))
+                        return@patch
+                    }
                 }
                 try {
                     val updated = StaffRepository.updateWithAudit(
@@ -330,6 +340,10 @@ fun Application.configureStaffRoutes() {
                         call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
                         return@post
                     }
+                if (current.role == StaffRole.staff) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Сотрудник не может увольнять других сотрудников"))
+                    return@post
+                }
                 if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
                     call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Доступ только для администратора"))
                     return@post

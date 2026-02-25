@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useStaffAuth } from '../context/StaffAuthContext'
 import { get, post, patch, ApiError } from '../api/client'
@@ -27,12 +27,14 @@ function roleLabel(role: string): string {
   return ROLE_OPTIONS.find((o) => o.value === role)?.label ?? role
 }
 
-type ModalKind = 'add' | 'edit' | 'dismiss' | null
+type ModalKind = 'add' | 'edit' | 'dismiss' | 'restore' | null
 
 export default function StaffStaffPage() {
   const { staffUser } = useStaffAuth()
   const [list, setList] = useState<StaffItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingElapsed, setLoadingElapsed] = useState(0)
+  const loadingStartRef = useRef<number | null>(null)
   const [modal, setModal] = useState<ModalKind>(null)
   const [targetId, setTargetId] = useState<number | null>(null)
 
@@ -56,7 +58,13 @@ export default function StaffStaffPage() {
   const [dismissError, setDismissError] = useState<string | null>(null)
   const [dismissLoading, setDismissLoading] = useState(false)
 
+  const [restoreRole, setRestoreRole] = useState('staff')
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+  const [restoreLoading, setRestoreLoading] = useState(false)
+
   const loadList = useCallback(() => {
+    loadingStartRef.current = Date.now()
+    setLoadingElapsed(0)
     setLoading(true)
     get<StaffItem[]>('/api/staff/staff', true)
       .then(setList)
@@ -70,6 +78,15 @@ export default function StaffStaffPage() {
     if (!isAdmin) return
     loadList()
   }, [staffUser, loadList])
+
+  useEffect(() => {
+    if (!loading) return
+    const start = loadingStartRef.current ?? Date.now()
+    const id = setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [loading])
 
   const openAdd = () => {
     setAddName('')
@@ -101,12 +118,21 @@ export default function StaffStaffPage() {
     setModal('dismiss')
   }
 
+  const openRestore = (row: StaffItem) => {
+    if (row.role !== 'inactive') return
+    setTargetId(row.id)
+    setRestoreRole(staffUser?.role === 'superadmin' ? 'staff' : 'staff')
+    setRestoreError(null)
+    setModal('restore')
+  }
+
   const closeModal = () => {
     setModal(null)
     setTargetId(null)
     setAddError(null)
     setEditError(null)
     setDismissError(null)
+    setRestoreError(null)
   }
 
   const submitAdd = async (e: React.FormEvent) => {
@@ -208,6 +234,27 @@ export default function StaffStaffPage() {
     }
   }
 
+  const submitRestore = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (targetId == null) return
+    const canRestoreAsAdmin = staffUser?.role === 'superadmin'
+    if (!canRestoreAsAdmin && restoreRole !== 'staff') {
+      setRestoreError('Администратор может восстановить только с ролью «Сотрудник»')
+      return
+    }
+    setRestoreLoading(true)
+    setRestoreError(null)
+    try {
+      await patch<StaffItem>(`/api/staff/staff/${targetId}`, { role: restoreRole }, true)
+      loadList()
+      closeModal()
+    } catch (err) {
+      setRestoreError(err instanceof ApiError ? err.message : 'Ошибка при восстановлении')
+    } finally {
+      setRestoreLoading(false)
+    }
+  }
+
   if (!staffUser) {
     return <Navigate to="/staff" replace />
   }
@@ -223,6 +270,8 @@ export default function StaffStaffPage() {
       ? ROLE_OPTIONS.filter((o) => o.value !== 'superadmin')
       : ROLE_OPTIONS.filter((o) => o.value === 'staff')
 
+  const activeStaff = useMemo(() => list.filter((s) => s.role !== 'inactive'), [list])
+  const inactiveStaff = useMemo(() => list.filter((s) => s.role === 'inactive'), [list])
   const targetStaff = targetId != null ? list.find((s) => s.id === targetId) : null
 
   return (
@@ -233,54 +282,105 @@ export default function StaffStaffPage() {
         </button>
       </div>
 
-      {loading ? (
+      {loading && loadingElapsed >= 1 ? (
         <LoadingLogo />
       ) : (
-        <table className="cabinet-table staff-spaces-table">
-          <caption className="cabinet-table-caption">Сотрудники</caption>
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Email</th>
-              <th>Телефон</th>
-              <th>Роль</th>
-              <th>Должность</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((row) => (
-              <tr key={row.id}>
-                <td>{row.name}</td>
-                <td>{row.email}</td>
-                <td>{row.phone}</td>
-                <td>{roleLabel(row.role)}</td>
-                <td>{row.position || '—'}</td>
-                <td>
-                  {row.role !== 'inactive' && row.id !== staffUser.id && (
-                    <>
-                      <button
-                        type="button"
-                        className="cabinet-edit-btn"
-                        style={{ marginRight: '0.5rem' }}
-                        onClick={() => openEdit(row)}
-                      >
-                        Изменить
-                      </button>
-                      <button
-                        type="button"
-                        className="cabinet-password-btn"
-                        onClick={() => openDismiss(row)}
-                      >
-                        Уволить
-                      </button>
-                    </>
-                  )}
-                </td>
+        <>
+          <table className="cabinet-table staff-staff-table">
+            <caption className="cabinet-table-caption">Сотрудники</caption>
+            <thead>
+              <tr>
+                <th>Имя</th>
+                <th>Email</th>
+                <th>Телефон</th>
+                <th>Роль</th>
+                <th className="staff-staff-table-position">Должность</th>
+                <th className="staff-staff-table-actions">Действия</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {activeStaff.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>Нет активных сотрудников</td>
+                </tr>
+              ) : (
+                activeStaff.map((row) => {
+                  const canEditDismiss =
+                    (staffUser.role === 'superadmin' && row.id !== staffUser.id) ||
+                    (staffUser.role === 'admin' && row.role === 'staff')
+                  return (
+                    <tr key={row.id}>
+                      <td>{row.name}</td>
+                      <td>{row.email}</td>
+                      <td>{row.phone}</td>
+                      <td>{roleLabel(row.role)}</td>
+                      <td>{row.position || '—'}</td>
+                      <td>
+                        {canEditDismiss && (
+                          <>
+                            <button
+                              type="button"
+                              className="cabinet-edit-btn"
+                              style={{ marginRight: '0.5rem' }}
+                              onClick={() => openEdit(row)}
+                            >
+                              Изменить
+                            </button>
+                            <button
+                              type="button"
+                              className="cabinet-password-btn"
+                              onClick={() => openDismiss(row)}
+                            >
+                              Уволить
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+
+          {inactiveStaff.length > 0 && (
+            <>
+              <h2 className="cabinet-history-title" style={{ marginTop: '2rem' }}>
+                Бывшие сотрудники
+              </h2>
+              <table className="cabinet-table staff-staff-table staff-staff-table--inactive">
+                <thead>
+                  <tr>
+                    <th>Имя</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
+                    <th className="staff-staff-table-position">Должность</th>
+                    <th className="staff-staff-table-actions">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inactiveStaff.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.name}</td>
+                      <td>{row.email}</td>
+                      <td>{row.phone}</td>
+                      <td>{row.position || '—'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="cabinet-edit-btn"
+                          onClick={() => openRestore(row)}
+                        >
+                          Восстановить
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </>
       )}
 
       {modal === 'add' && (
@@ -477,6 +577,43 @@ export default function StaffStaffPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {modal === 'restore' && targetStaff && (
+        <div className="cabinet-modal-overlay" onClick={closeModal}>
+          <div className="cabinet-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cabinet-modal-title">Восстановить сотрудника</h3>
+            <form className="cabinet-modal-form" onSubmit={submitRestore}>
+              {restoreError && <p className="cabinet-modal-error" role="alert">{restoreError}</p>}
+              <p style={{ marginBottom: '1rem', color: 'var(--cabinet-text-muted)' }}>
+                <strong>{targetStaff.name}</strong> ({targetStaff.email})
+              </p>
+              <div className="cabinet-modal-field">
+                <label className="cabinet-modal-label" htmlFor="staff-restore-role">Роль</label>
+                <select
+                  id="staff-restore-role"
+                  className="cabinet-modal-input"
+                  value={restoreRole}
+                  onChange={(e) => setRestoreRole(e.target.value)}
+                >
+                  {staffUser?.role === 'superadmin'
+                    ? ROLE_OPTIONS.filter((o) => o.value !== 'superadmin' && o.value !== 'inactive').map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))
+                    : <option value="staff">Сотрудник</option>}
+                </select>
+              </div>
+              <div className="cabinet-modal-actions">
+                <button type="button" className="cabinet-modal-cancel" onClick={closeModal}>
+                  Отмена
+                </button>
+                <button type="submit" className="cabinet-modal-submit" disabled={restoreLoading}>
+                  {restoreLoading ? 'Выполняется…' : 'Восстановить'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

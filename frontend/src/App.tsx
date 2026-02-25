@@ -15,6 +15,7 @@ import StaffAmenitiesPage from './pages/StaffAmenitiesPage'
 import StaffTariffsPage from './pages/StaffTariffsPage'
 import StaffSubscriptionsPage from './pages/StaffSubscriptionsPage'
 import StaffBookingsPage from './pages/StaffBookingsPage'
+import StaffStaffPage from './pages/StaffStaffPage'
 import BookingsPage from './pages/BookingsPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -55,6 +56,7 @@ function App() {
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffGate />} />
               <Route path="cabinet" element={<StaffRequireAuth><StaffCabinetPage /></StaffRequireAuth>} />
+              <Route path="staff" element={<StaffRequireAuth><StaffStaffPage /></StaffRequireAuth>} />
               <Route path="spaces" element={<StaffRequireAuth><StaffSpacesPage /></StaffRequireAuth>} />
               <Route path="amenities" element={<StaffRequireAuth><StaffAmenitiesPage /></StaffRequireAuth>} />
               <Route path="tariffs" element={<StaffRequireAuth><StaffTariffsPage /></StaffRequireAuth>} />

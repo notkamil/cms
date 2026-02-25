@@ -15,7 +15,7 @@ CREATE TYPE booking_type        AS ENUM ('one_time', 'subscription');
 CREATE TYPE booking_status      AS ENUM ('confirmed', 'cancelled', 'completed');
 CREATE TYPE subscription_status AS ENUM ('active', 'expired', 'cancelled');
 CREATE TYPE transaction_type    AS ENUM ('deposit', 'payment', 'refund', 'bonus', 'withdrawal');
-CREATE TYPE staff_role          AS ENUM ('superadmin', 'admin', 'staff');
+CREATE TYPE staff_role          AS ENUM ('superadmin', 'admin', 'staff', 'inactive');
 
 -- ============================================================
 -- Tables
@@ -160,4 +160,24 @@ CREATE TABLE MemberProfileAudit (
     NewPhone        VARCHAR(20)  NOT NULL,
     OldPasswordHash VARCHAR(255) NOT NULL,
     NewPasswordHash VARCHAR(255) NOT NULL
+);
+
+-- Audit log for staff (create/update/dismiss). Пустые значения: пустая строка для текста, 'inactive' для роли (null не используем).
+CREATE TABLE StaffAudit (
+    AuditId           INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    StaffId            INT          NOT NULL REFERENCES Staff (StaffId),
+    ChangedAt          TIMESTAMP    NOT NULL DEFAULT NOW(),
+    ChangedByStaffId  INT          NOT NULL REFERENCES Staff (StaffId),
+    OldName            VARCHAR(64)  NOT NULL DEFAULT '',
+    NewName            VARCHAR(64)  NOT NULL DEFAULT '',
+    OldEmail           VARCHAR(64)  NOT NULL DEFAULT '',
+    NewEmail           VARCHAR(64)  NOT NULL DEFAULT '',
+    OldPhone           VARCHAR(20)  NOT NULL DEFAULT '',
+    NewPhone           VARCHAR(20)  NOT NULL DEFAULT '',
+    OldRole            staff_role   NOT NULL DEFAULT 'inactive',
+    NewRole            staff_role   NOT NULL DEFAULT 'inactive',
+    OldPosition        VARCHAR(128) NOT NULL DEFAULT '',
+    NewPosition        VARCHAR(128) NOT NULL DEFAULT '',
+    OldPasswordHash    VARCHAR(255) NOT NULL DEFAULT '',
+    NewPasswordHash    VARCHAR(255) NOT NULL DEFAULT ''
 );

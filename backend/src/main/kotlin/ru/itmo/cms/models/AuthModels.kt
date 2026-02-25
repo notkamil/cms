@@ -69,6 +69,37 @@ data class StaffAuthResponse(
     val staff: StaffResponse
 )
 
+/** Создание сотрудника (страница «Сотрудники») */
+@Serializable
+data class CreateStaffRequest(
+    val name: String,
+    val email: String,
+    val phone: String,
+    val role: String,
+    val position: String,
+    val password: String
+)
+
+/** Редактирование сотрудника (без смены пароля) */
+@Serializable
+data class UpdateStaffRequest(
+    val name: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    val role: String? = null,
+    val position: String? = null
+)
+
+/** Изменение своих данных в личном кабинете сотрудника (роль не меняется) */
+@Serializable
+data class PatchStaffMeRequest(
+    val name: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    val position: String? = null,
+    val currentPassword: String
+)
+
 /** Элемент истории транзакций: время, изменение баланса (положительное — приход, отрицательное — расход), комментарий */
 @Serializable
 data class TransactionResponse(

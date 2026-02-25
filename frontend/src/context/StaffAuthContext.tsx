@@ -44,6 +44,7 @@ interface StaffAuthContextValue {
   staffToken: string | null
   staffLogin: (email: string, password: string) => Promise<void>
   staffLogout: () => void
+  updateStaffUser: (user: StaffUser) => void
 }
 
 const StaffAuthContext = createContext<StaffAuthContextValue | null>(null)
@@ -75,9 +76,14 @@ export function StaffAuthProvider({ children }: StaffAuthProviderProps) {
     localStorage.removeItem(STAFF_USER_STORAGE_KEY)
   }, [])
 
+  const updateStaffUser = useCallback((user: StaffUser) => {
+    setStaffUser(user)
+    localStorage.setItem(STAFF_USER_STORAGE_KEY, JSON.stringify(user))
+  }, [])
+
   const value = useMemo<StaffAuthContextValue>(
-    () => ({ staffUser, staffToken, staffLogin, staffLogout }),
-    [staffUser, staffToken, staffLogin, staffLogout]
+    () => ({ staffUser, staffToken, staffLogin, staffLogout, updateStaffUser }),
+    [staffUser, staffToken, staffLogin, staffLogout, updateStaffUser]
   )
 
   return (

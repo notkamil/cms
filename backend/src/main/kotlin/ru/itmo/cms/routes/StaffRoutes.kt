@@ -17,7 +17,9 @@ import ru.itmo.cms.repository.SpaceRepository
 import ru.itmo.cms.repository.SpaceRow
 import ru.itmo.cms.repository.SpaceTypeRepository
 import ru.itmo.cms.repository.SpaceTypeRow
+import ru.itmo.cms.repository.StaffProfileUpdateException
 import ru.itmo.cms.repository.StaffRepository
+import ru.itmo.cms.repository.StaffRole
 import ru.itmo.cms.repository.StaffRow
 import ru.itmo.cms.repository.SubscriptionRepository
 import ru.itmo.cms.repository.SubscriptionStatus
@@ -62,6 +64,10 @@ fun Application.configureStaffRoutes() {
                     call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Неверный email или пароль"))
                     return@post
                 }
+                if (staff.role == StaffRole.inactive) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Учётная запись деактивирована"))
+                    return@post
+                }
                 val token = createStaffToken(staff.staffId, staff.email, secret, issuer, staffAudience, expiresInSeconds)
                 call.respond(StaffAuthResponse(token = token, staff = staff.toStaffResponse()))
             } catch (e: Exception) {
@@ -86,6 +92,273 @@ fun Application.configureStaffRoutes() {
                         return@get
                     }
                 call.respond(staff.toStaffResponse())
+            }
+            patch("/api/staff/me") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@patch
+                }
+                val staffId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@patch
+                }
+                val body = call.receive<PatchStaffMeRequest>()
+                try {
+                    val updated = StaffRepository.updateOwnProfileWithAudit(
+                        staffId = staffId,
+                        currentPassword = body.currentPassword,
+                        name = body.name,
+                        email = body.email,
+                        phone = body.phone,
+                        position = body.position
+                    )
+                    call.respond(updated.toStaffResponse())
+                } catch (e: StaffProfileUpdateException) {
+                    when (e) {
+                        is StaffProfileUpdateException.InvalidPassword ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный пароль")))
+                        is StaffProfileUpdateException.EmailAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Email уже используется")))
+                        is StaffProfileUpdateException.PhoneAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Телефон уже используется")))
+                        is StaffProfileUpdateException.PhoneNotE164 ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Телефон в формате +79001234567")))
+                        is StaffProfileUpdateException.NothingChanged ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Ничего не изменено")))
+                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                    }
+                }
+            }
+            put("/api/staff/me/password") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@put
+                }
+                val staffId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@put
+                }
+                val body = call.receive<PutPasswordRequest>()
+                if (body.newPassword.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите новый пароль"))
+                    return@put
+                }
+                try {
+                    val hash = BCrypt.withDefaults().hashToString(12, body.newPassword.toCharArray())
+                    StaffRepository.changeOwnPasswordWithAudit(staffId, body.currentPassword, hash)
+                    call.respond(HttpStatusCode.NoContent)
+                } catch (e: StaffProfileUpdateException.InvalidPassword) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Неверный пароль")))
+                }
+            }
+
+            // ----- Staff list (admin/superadmin only) -----
+            get("/api/staff/staff") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@get
+                }
+                val currentId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@get
+                }
+                val current = StaffRepository.findById(currentId)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        return@get
+                    }
+                if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Доступ только для администратора"))
+                    return@get
+                }
+                val list = StaffRepository.findAll().map { it.toStaffResponse() }
+                call.respond(list)
+            }
+            post("/api/staff/staff") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@post
+                }
+                val currentId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@post
+                }
+                val current = StaffRepository.findById(currentId)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        return@post
+                    }
+                if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Доступ только для администратора"))
+                    return@post
+                }
+                val body = call.receive<CreateStaffRequest>()
+                val role = runCatching { StaffRole.valueOf(body.role) }.getOrNull()
+                    ?: run {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Недопустимая роль"))
+                        return@post
+                    }
+                if (role == StaffRole.inactive) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Нельзя создать сотрудника с ролью неактивен"))
+                    return@post
+                }
+                if (role == StaffRole.superadmin) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Нельзя создать суперадмина через интерфейс"))
+                    return@post
+                }
+                if (current.role == StaffRole.admin && role != StaffRole.staff) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может создавать только сотрудников"))
+                    return@post
+                }
+                if (body.password.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Укажите пароль"))
+                    return@post
+                }
+                try {
+                    val hash = BCrypt.withDefaults().hashToString(12, body.password.toCharArray())
+                    val created = StaffRepository.createWithAudit(
+                        name = body.name.trim(),
+                        email = body.email,
+                        phone = body.phone,
+                        role = role,
+                        position = body.position.trim().ifBlank { "" },
+                        passwordHash = hash,
+                        changedByStaffId = currentId
+                    )
+                    call.respond(HttpStatusCode.Created, created.toStaffResponse())
+                } catch (e: StaffProfileUpdateException) {
+                    when (e) {
+                        is StaffProfileUpdateException.InvalidInput ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                        is StaffProfileUpdateException.EmailAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Email already used")))
+                        is StaffProfileUpdateException.PhoneAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Phone already used")))
+                        is StaffProfileUpdateException.PhoneNotE164 ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Invalid phone")))
+                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                    }
+                }
+            }
+            patch("/api/staff/staff/{id}") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@patch
+                }
+                val currentId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@patch
+                }
+                val current = StaffRepository.findById(currentId)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        return@patch
+                    }
+                if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Доступ только для администратора"))
+                    return@patch
+                }
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@patch
+                }
+                val target = StaffRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
+                        return@patch
+                    }
+                if (current.role == StaffRole.admin && target.role != StaffRole.staff) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может редактировать только сотрудников"))
+                    return@patch
+                }
+                val body = call.receive<UpdateStaffRequest>()
+                val newRole = body.role?.let { runCatching { StaffRole.valueOf(it) }.getOrNull() }
+                if (body.role != null && newRole == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Недопустимая роль"))
+                    return@patch
+                }
+                if (newRole == StaffRole.inactive) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Для увольнения используйте действие «Уволить»"))
+                    return@patch
+                }
+                if (newRole == StaffRole.superadmin) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Нельзя назначить роль суперадмин через интерфейс"))
+                    return@patch
+                }
+                if (current.role == StaffRole.admin && newRole != null && newRole != StaffRole.staff) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может назначать только роль «Сотрудник»"))
+                    return@patch
+                }
+                try {
+                    val updated = StaffRepository.updateWithAudit(
+                        staffId = id,
+                        changedByStaffId = currentId,
+                        name = body.name,
+                        email = body.email,
+                        phone = body.phone,
+                        role = newRole,
+                        position = body.position
+                    )
+                    call.respond(updated.toStaffResponse())
+                } catch (e: StaffProfileUpdateException) {
+                    when (e) {
+                        is StaffProfileUpdateException.NothingChanged ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Nothing changed")))
+                        is StaffProfileUpdateException.EmailAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Email already used")))
+                        is StaffProfileUpdateException.PhoneAlreadyUsed ->
+                            call.respond(HttpStatusCode.Conflict, mapOf("error" to (e.message ?: "Phone already used")))
+                        is StaffProfileUpdateException.PhoneNotE164 ->
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Invalid phone")))
+                        else -> call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Bad request")))
+                    }
+                } catch (e: NoSuchElementException) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
+                }
+            }
+            post("/api/staff/staff/{id}/dismiss") {
+                val principal = call.principal<JWTPrincipal>() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    return@post
+                }
+                val currentId = principal.payload.subject?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                    return@post
+                }
+                val current = StaffRepository.findById(currentId)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
+                        return@post
+                    }
+                if (current.role != StaffRole.superadmin && current.role != StaffRole.admin) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Доступ только для администратора"))
+                    return@post
+                }
+                val id = call.parameters["id"]?.toIntOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                    return@post
+                }
+                val target = StaffRepository.findById(id)
+                    ?: run {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
+                        return@post
+                    }
+                if (current.role == StaffRole.admin && target.role != StaffRole.staff) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Администратор может уволить только сотрудников"))
+                    return@post
+                }
+                if (currentId == id) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Нельзя уволить самого себя"))
+                    return@post
+                }
+                try {
+                    val updated = StaffRepository.setInactiveWithAudit(staffId = id, changedByStaffId = currentId)
+                    call.respond(updated.toStaffResponse())
+                } catch (e: StaffProfileUpdateException.NothingChanged) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Сотрудник уже неактивен")))
+                } catch (e: NoSuchElementException) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Сотрудник не найден"))
+                }
             }
 
             // ----- Space Types -----

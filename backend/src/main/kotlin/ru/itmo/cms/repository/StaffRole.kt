@@ -5,7 +5,8 @@ import org.postgresql.util.PGobject
 enum class StaffRole {
     superadmin,
     admin,
-    staff
+    staff,
+    inactive
 }
 
 /** PGobject для записи PostgreSQL enum staff_role */
